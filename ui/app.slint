@@ -1,0 +1,1230 @@
+import { Button, CheckBox, ComboBox, LineEdit, ScrollView, VerticalBox, HorizontalBox } from "std-widgets.slint";
+
+export struct ExerciseRow {
+    id: int,
+    name: string,
+    meta: string,
+    description: string,
+    source: string,
+}
+
+export struct TemplateCard {
+    id: int,
+    name: string,
+    days: string,
+    info: string,
+    created_at: string,
+}
+
+export struct SessionCard {
+    title: string,
+    subtitle: string,
+    metric: string,
+}
+
+export struct ScheduleCard {
+    day: string,
+    title: string,
+    detail: string,
+}
+
+export struct DraftExerciseRow {
+    index: int,
+    title: string,
+    detail: string,
+}
+
+export struct WorkoutExerciseRow {
+    index: int,
+    title: string,
+    subtitle: string,
+    badge: string,
+}
+
+export struct WorkoutSetRow {
+    exercise_index: int,
+    set_index: int,
+    title: string,
+    plan: string,
+    actual: string,
+    reference: string,
+    status: string,
+}
+
+component TabButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> active;
+    callback clicked;
+
+    border-radius: 18px;
+    background: active ? #192118 : #f1e7d3;
+    border-color: active ? #192118 : #d4c4a5;
+    border-width: 1px;
+    height: 42px;
+
+    Text {
+        text: parent.label;
+        color: parent.active ? #f8f0df : #3f3524;
+        font-size: 15px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    TouchArea {
+        clicked => {
+            parent.clicked();
+        }
+    }
+}
+
+component CardTitle inherits Text {
+    color: #221d13;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+component MutedText inherits Text {
+    color: #635743;
+    font-size: 13px;
+    wrap: word-wrap;
+}
+
+export component MainWindow inherits Window {
+    title: "FastGTrack";
+    width: 1480px;
+    height: 960px;
+    background: #e7d7bb;
+
+    in-out property <int> selected-tab: 0;
+    in property <[ExerciseRow]> exercises: [];
+    in property <[TemplateCard]> templates: [];
+    in property <[SessionCard]> recent-sessions: [];
+    in property <[ScheduleCard]> schedule: [];
+    in property <[DraftExerciseRow]> draft-exercises: [];
+    in property <[WorkoutExerciseRow]> workout-exercises: [];
+    in property <[WorkoutSetRow]> workout-sets: [];
+    in property <string> active-workout-title: "No active workout";
+    in property <string> active-workout-subtitle: "Start a template from Home to enter session mode.";
+    in property <string> current-exercise-title: "No exercise selected";
+    in property <string> current-exercise-description: "";
+    in property <string> previous-exercise-title: "-";
+    in property <string> next-exercise-title: "-";
+    in property <string> workout-progress: "0 / 0 sets complete";
+    in property <string> rest-hint: "Rest timer adopts the template rest after every completed set.";
+    in property <string> status-message: "Workspace ready.";
+    in property <string> home-hero-title: "Train with context, not spreadsheets";
+    in property <string> home-hero-subtitle: "Create sessions from reusable templates, track each set, and keep PR momentum visible.";
+    in property <string> next-workout-label: "No workout scheduled yet";
+    in property <string> streak-label: "Streak: 0 days";
+    in property <bool> has-active-workout: false;
+
+    callback save-exercise(string, string, string, string, bool, bool);
+    callback delete-exercise(int);
+    callback add-draft-exercise(int, string, string, string, string, string, string, string);
+    callback remove-draft-exercise(int);
+    callback clear-draft();
+    callback save-template(string, string);
+    callback start-workout(int);
+    callback select-active-exercise(int);
+    callback complete-set(int, int, string, string, string);
+    callback finish-workout();
+
+    Rectangle {
+        background: #d8c5a2;
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+
+        Rectangle {
+            x: 18px;
+            y: 18px;
+            width: parent.width - 36px;
+            height: parent.height - 36px;
+            border-radius: 28px;
+            background: #f6efdf;
+            border-color: #b79f74;
+            border-width: 1px;
+
+            Rectangle {
+                x: 0;
+                y: 0;
+                width: parent.width;
+                height: 104px;
+                border-radius: 28px;
+                background: #192118;
+
+                Rectangle {
+                    x: 24px;
+                    y: 18px;
+                    width: parent.width - 48px;
+                    height: 68px;
+                    background: transparent;
+
+                    Text {
+                        x: 0;
+                        y: 4px;
+                        text: "FASTGTRACK";
+                        color: #f6efdf;
+                        font-size: 30px;
+                        font-weight: 800;
+                    }
+
+                    Text {
+                        x: 0;
+                        y: 42px;
+                        text: root.status-message;
+                        color: #cfbea0;
+                        font-size: 14px;
+                    }
+
+                    Text {
+                        x: parent.width - 260px;
+                        y: 8px;
+                        width: 260px;
+                        text: root.next-workout-label + "\n" + root.streak-label;
+                        color: #f1e6d1;
+                        font-size: 14px;
+                        horizontal-alignment: right;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+
+            HorizontalBox {
+                x: 24px;
+                y: 124px;
+                width: 620px;
+                height: 42px;
+                spacing: 10px;
+
+                TabButton {
+                    active: root.selected-tab == 0;
+                    label: "Home";
+                    clicked => { root.selected-tab = 0; }
+                }
+                TabButton {
+                    active: root.selected-tab == 1;
+                    label: "Exercises";
+                    clicked => { root.selected-tab = 1; }
+                }
+                TabButton {
+                    active: root.selected-tab == 2;
+                    label: "Builder";
+                    clicked => { root.selected-tab = 2; }
+                }
+                TabButton {
+                    active: root.selected-tab == 3;
+                    label: "Workout";
+                    clicked => { root.selected-tab = 3; }
+                }
+            }
+
+            if root.selected-tab == 0 : Rectangle {
+                x: 24px;
+                y: 184px;
+                width: parent.width - 48px;
+                height: parent.height - 208px;
+                background: transparent;
+
+                Rectangle {
+                    x: 0;
+                    y: 0;
+                    width: parent.width;
+                    height: 168px;
+                    border-radius: 26px;
+                    background: #efe2c8;
+                    border-color: #ceb487;
+                    border-width: 1px;
+
+                    Text {
+                        x: 24px;
+                        y: 22px;
+                        width: parent.width - 48px;
+                        text: root.home-hero-title;
+                        color: #20190f;
+                        font-size: 34px;
+                        font-weight: 800;
+                    }
+
+                    Text {
+                        x: 24px;
+                        y: 74px;
+                        width: parent.width - 280px;
+                        text: root.home-hero-subtitle;
+                        color: #564931;
+                        font-size: 16px;
+                        wrap: word-wrap;
+                    }
+
+                    Rectangle {
+                        x: parent.width - 250px;
+                        y: 24px;
+                        width: 220px;
+                        height: 116px;
+                        border-radius: 18px;
+                        background: #192118;
+
+                        Text {
+                            x: 18px;
+                            y: 18px;
+                            width: parent.width - 36px;
+                            text: "Next session";
+                            color: #bdb69e;
+                            font-size: 13px;
+                        }
+
+                        Text {
+                            x: 18px;
+                            y: 44px;
+                            width: parent.width - 36px;
+                            text: root.next-workout-label;
+                            color: #f6efdf;
+                            font-size: 19px;
+                            font-weight: 700;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    x: 0;
+                    y: 188px;
+                    width: parent.width * 0.47;
+                    height: parent.height - 188px;
+                    border-radius: 22px;
+                    background: #fbf7ee;
+                    border-color: #d8c5a2;
+                    border-width: 1px;
+
+                    CardTitle {
+                        x: 20px;
+                        y: 18px;
+                        text: "Recent sessions";
+                    }
+
+                    ScrollView {
+                        x: 14px;
+                        y: 58px;
+                        width: parent.width - 28px;
+                        height: parent.height - 72px;
+
+                        VerticalBox {
+                            width: parent.width - 20px;
+                            spacing: 10px;
+
+                            for session in root.recent-sessions : Rectangle {
+                                height: 92px;
+                                border-radius: 18px;
+                                background: #efe7d7;
+                                border-color: #dfcfb0;
+                                border-width: 1px;
+
+                                Text {
+                                    x: 18px;
+                                    y: 16px;
+                                    text: session.title;
+                                    color: #241d13;
+                                    font-size: 18px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    x: 18px;
+                                    y: 44px;
+                                    width: parent.width - 36px;
+                                    text: session.subtitle;
+                                    color: #615541;
+                                    font-size: 13px;
+                                }
+
+                                Text {
+                                    x: parent.width - 140px;
+                                    y: 18px;
+                                    width: 120px;
+                                    text: session.metric;
+                                    color: #8f6f2a;
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    horizontal-alignment: right;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    x: parent.width * 0.49;
+                    y: 188px;
+                    width: parent.width * 0.25;
+                    height: parent.height - 188px;
+                    border-radius: 22px;
+                    background: #fbf7ee;
+                    border-color: #d8c5a2;
+                    border-width: 1px;
+
+                    CardTitle {
+                        x: 20px;
+                        y: 18px;
+                        text: "This week";
+                    }
+
+                    ScrollView {
+                        x: 14px;
+                        y: 58px;
+                        width: parent.width - 28px;
+                        height: parent.height - 72px;
+
+                        VerticalBox {
+                            width: parent.width - 20px;
+                            spacing: 10px;
+
+                            for slot in root.schedule : Rectangle {
+                                height: 82px;
+                                border-radius: 18px;
+                                background: #f3ebdc;
+                                border-color: #dfcfb0;
+                                border-width: 1px;
+
+                                Text {
+                                    x: 16px;
+                                    y: 14px;
+                                    text: slot.day;
+                                    color: #7e6741;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    x: 16px;
+                                    y: 34px;
+                                    text: slot.title;
+                                    color: #241d13;
+                                    font-size: 17px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    x: 16px;
+                                    y: 58px;
+                                    text: slot.detail;
+                                    color: #635743;
+                                    font-size: 12px;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    x: parent.width * 0.76;
+                    y: 188px;
+                    width: parent.width * 0.24;
+                    height: parent.height - 188px;
+                    border-radius: 22px;
+                    background: #192118;
+
+                    CardTitle {
+                        x: 20px;
+                        y: 18px;
+                        text: "Templates";
+                        color: #f6efdf;
+                    }
+
+                    ScrollView {
+                        x: 14px;
+                        y: 58px;
+                        width: parent.width - 28px;
+                        height: parent.height - 72px;
+
+                        VerticalBox {
+                            width: parent.width - 20px;
+                            spacing: 10px;
+
+                            for template in root.templates : Rectangle {
+                                height: 144px;
+                                border-radius: 18px;
+                                background: #263027;
+                                border-color: #3e4c3d;
+                                border-width: 1px;
+
+                                Text {
+                                    x: 16px;
+                                    y: 14px;
+                                    width: parent.width - 32px;
+                                    text: template.name;
+                                    color: #f7f1e2;
+                                    font-size: 19px;
+                                    font-weight: 700;
+                                    wrap: word-wrap;
+                                }
+
+                                Text {
+                                    x: 16px;
+                                    y: 48px;
+                                    width: parent.width - 32px;
+                                    text: template.days;
+                                    color: #c9b89a;
+                                    font-size: 13px;
+                                    wrap: word-wrap;
+                                }
+
+                                Text {
+                                    x: 16px;
+                                    y: 72px;
+                                    width: parent.width - 32px;
+                                    text: template.info;
+                                    color: #aab3a3;
+                                    font-size: 12px;
+                                }
+
+                                Button {
+                                    x: 16px;
+                                    y: 98px;
+                                    width: parent.width - 32px;
+                                    text: "Start workout";
+                                    clicked => {
+                                        root.start-workout(template.id);
+                                        root.selected-tab = 3;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if root.selected-tab == 1 : Rectangle {
+                x: 24px;
+                y: 184px;
+                width: parent.width - 48px;
+                height: parent.height - 208px;
+                background: transparent;
+
+                Rectangle {
+                    x: 0;
+                    y: 0;
+                    width: 360px;
+                    height: parent.height;
+                    border-radius: 22px;
+                    background: #fbf7ee;
+                    border-color: #d8c5a2;
+                    border-width: 1px;
+
+                    CardTitle {
+                        x: 22px;
+                        y: 18px;
+                        text: "Add exercise";
+                    }
+
+                    exercise_name := LineEdit {
+                        x: 22px;
+                        y: 60px;
+                        width: parent.width - 44px;
+                        placeholder-text: "Exercise name";
+                    }
+
+                    muscle_group := ComboBox {
+                        x: 22px;
+                        y: 110px;
+                        width: parent.width - 44px;
+                        model: ["Chest", "Upper Back", "Lower Back", "Shoulders", "Arms", "Core", "Legs", "Glutes", "Cardio"];
+                        current-index: 0;
+                    }
+
+                    equipment_box := ComboBox {
+                        x: 22px;
+                        y: 160px;
+                        width: parent.width - 44px;
+                        model: ["Barbell", "Dumbbell", "Machine", "Cable", "Bodyweight", "Resistance Band", "None"];
+                        current-index: 0;
+                    }
+
+                    description_input := LineEdit {
+                        x: 22px;
+                        y: 210px;
+                        width: parent.width - 44px;
+                        placeholder-text: "Short description";
+                    }
+
+                    is_timed_box := CheckBox {
+                        x: 22px;
+                        y: 264px;
+                        text: "Timed movement";
+                    }
+
+                    is_bodyweight_box := CheckBox {
+                        x: 22px;
+                        y: 298px;
+                        text: "Bodyweight movement";
+                    }
+
+                    Button {
+                        x: 22px;
+                        y: 344px;
+                        width: parent.width - 44px;
+                        text: "Save exercise";
+                        clicked => {
+                            root.save-exercise(
+                                exercise_name.text,
+                                muscle_group.current-value,
+                                equipment_box.current-value,
+                                description_input.text,
+                                is_timed_box.checked,
+                                is_bodyweight_box.checked,
+                            );
+                        }
+                    }
+
+                    MutedText {
+                        x: 22px;
+                        y: 398px;
+                        width: parent.width - 44px;
+                        text: "Starter exercises are seeded automatically. New custom entries land in the same database and can be used immediately in templates.";
+                    }
+                }
+
+                Rectangle {
+                    x: 384px;
+                    y: 0;
+                    width: parent.width - 384px;
+                    height: parent.height;
+                    border-radius: 22px;
+                    background: #fbf7ee;
+                    border-color: #d8c5a2;
+                    border-width: 1px;
+
+                    CardTitle {
+                        x: 20px;
+                        y: 18px;
+                        text: "Exercise library";
+                    }
+
+                    ScrollView {
+                        x: 14px;
+                        y: 58px;
+                        width: parent.width - 28px;
+                        height: parent.height - 72px;
+
+                        VerticalBox {
+                            width: parent.width - 20px;
+                            spacing: 10px;
+
+                            for exercise in root.exercises : Rectangle {
+                                height: 132px;
+                                border-radius: 18px;
+                                background: #efe7d7;
+                                border-color: #dfcfb0;
+                                border-width: 1px;
+
+                                Text {
+                                    x: 18px;
+                                    y: 16px;
+                                    text: exercise.name;
+                                    color: #241d13;
+                                    font-size: 19px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    x: 18px;
+                                    y: 44px;
+                                    width: parent.width - 36px;
+                                    text: exercise.meta;
+                                    color: #8a6b2b;
+                                    font-size: 13px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    x: 18px;
+                                    y: 66px;
+                                    width: parent.width - 140px;
+                                    text: exercise.description;
+                                    color: #635743;
+                                    font-size: 13px;
+                                    wrap: word-wrap;
+                                }
+
+                                Button {
+                                    x: parent.width - 118px;
+                                    y: 18px;
+                                    width: 96px;
+                                    text: "Delete";
+                                    enabled: exercise.source == "user";
+                                    clicked => { root.delete-exercise(exercise.id); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if root.selected-tab == 2 : Rectangle {
+                x: 24px;
+                y: 184px;
+                width: parent.width - 48px;
+                height: parent.height - 208px;
+                background: transparent;
+
+                Rectangle {
+                    x: 0;
+                    y: 0;
+                    width: 430px;
+                    height: parent.height;
+                    border-radius: 22px;
+                    background: #fbf7ee;
+                    border-color: #d8c5a2;
+                    border-width: 1px;
+
+                    CardTitle {
+                        x: 20px;
+                        y: 18px;
+                        text: "Template settings";
+                    }
+
+                    template_name := LineEdit {
+                        x: 20px;
+                        y: 60px;
+                        width: parent.width - 40px;
+                        placeholder-text: "Template name";
+                    }
+
+                    assigned_days := LineEdit {
+                        x: 20px;
+                        y: 110px;
+                        width: parent.width - 40px;
+                        placeholder-text: "Assigned days, e.g. Monday, Thursday";
+                    }
+
+                    set_type := ComboBox {
+                        x: 20px;
+                        y: 160px;
+                        width: parent.width - 40px;
+                        model: ["Normal", "To Failure", "Timed", "Warmup", "Dropset"];
+                        current-index: 0;
+                    }
+
+                    HorizontalBox {
+                        x: 20px;
+                        y: 210px;
+                        width: parent.width - 40px;
+                        height: 40px;
+                        spacing: 10px;
+
+                        sets_count := LineEdit {
+                            placeholder-text: "Sets";
+                            text: "3";
+                        }
+                        reps_input := LineEdit {
+                            placeholder-text: "Reps";
+                            text: "8";
+                        }
+                        duration_input := LineEdit {
+                            placeholder-text: "Duration";
+                        }
+                    }
+
+                    HorizontalBox {
+                        x: 20px;
+                        y: 262px;
+                        width: parent.width - 40px;
+                        height: 40px;
+                        spacing: 10px;
+
+                        weight_input := LineEdit {
+                            placeholder-text: "Weight";
+                            text: "60";
+                        }
+                        rest_input := LineEdit {
+                            placeholder-text: "Rest sec";
+                            text: "90";
+                        }
+                        weight_type := ComboBox {
+                            model: ["Kg", "Lbs", "Bodyweight", "Assisted", "BW+"];
+                            current-index: 0;
+                        }
+                    }
+
+                    Button {
+                        x: 20px;
+                        y: 322px;
+                        width: (parent.width - 50px) / 2;
+                        text: "Save template";
+                        clicked => {
+                            root.save-template(template_name.text, assigned_days.text);
+                        }
+                    }
+
+                    Button {
+                        x: 30px + (parent.width - 50px) / 2;
+                        y: 322px;
+                        width: (parent.width - 50px) / 2;
+                        text: "Clear draft";
+                        clicked => { root.clear-draft(); }
+                    }
+
+                    CardTitle {
+                        x: 20px;
+                        y: 382px;
+                        text: "Draft queue";
+                    }
+
+                    ScrollView {
+                        x: 14px;
+                        y: 420px;
+                        width: parent.width - 28px;
+                        height: parent.height - 434px;
+
+                        VerticalBox {
+                            width: parent.width - 20px;
+                            spacing: 10px;
+
+                            for draft in root.draft-exercises : Rectangle {
+                                height: 104px;
+                                border-radius: 18px;
+                                background: #efe7d7;
+                                border-color: #dfcfb0;
+                                border-width: 1px;
+
+                                Text {
+                                    x: 16px;
+                                    y: 14px;
+                                    text: draft.title;
+                                    color: #241d13;
+                                    font-size: 17px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    x: 16px;
+                                    y: 42px;
+                                    width: parent.width - 112px;
+                                    text: draft.detail;
+                                    color: #635743;
+                                    font-size: 13px;
+                                    wrap: word-wrap;
+                                }
+
+                                Button {
+                                    x: parent.width - 88px;
+                                    y: 18px;
+                                    width: 70px;
+                                    text: "Remove";
+                                    clicked => { root.remove-draft-exercise(draft.index); }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    x: 454px;
+                    y: 0;
+                    width: parent.width - 454px;
+                    height: parent.height;
+                    border-radius: 22px;
+                    background: #192118;
+
+                    CardTitle {
+                        x: 20px;
+                        y: 18px;
+                        text: "Tap an exercise to queue it";
+                        color: #f6efdf;
+                    }
+
+                    MutedText {
+                        x: 20px;
+                        y: 46px;
+                        width: parent.width - 40px;
+                        color: #b8ab91;
+                        text: "The current set preset is applied to whichever exercise you add next. This keeps template creation fast for repeatable gym days.";
+                    }
+
+                    ScrollView {
+                        x: 14px;
+                        y: 96px;
+                        width: parent.width - 28px;
+                        height: parent.height - 110px;
+
+                        VerticalBox {
+                            width: parent.width - 20px;
+                            spacing: 10px;
+
+                            for exercise in root.exercises : Rectangle {
+                                height: 124px;
+                                border-radius: 18px;
+                                background: #263027;
+                                border-color: #3e4c3d;
+                                border-width: 1px;
+
+                                Text {
+                                    x: 16px;
+                                    y: 16px;
+                                    text: exercise.name;
+                                    color: #f6efdf;
+                                    font-size: 18px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    x: 16px;
+                                    y: 44px;
+                                    width: parent.width - 32px;
+                                    text: exercise.meta;
+                                    color: #d5bc84;
+                                    font-size: 13px;
+                                }
+
+                                Text {
+                                    x: 16px;
+                                    y: 64px;
+                                    width: parent.width - 170px;
+                                    text: exercise.description;
+                                    color: #b8ab91;
+                                    font-size: 12px;
+                                    wrap: word-wrap;
+                                }
+
+                                Button {
+                                    x: parent.width - 142px;
+                                    y: 24px;
+                                    width: 122px;
+                                    text: "Queue in draft";
+                                    clicked => {
+                                        root.add-draft-exercise(
+                                            exercise.id,
+                                            set_type.current-value,
+                                            sets_count.text,
+                                            reps_input.text,
+                                            duration_input.text,
+                                            weight_input.text,
+                                            rest_input.text,
+                                            weight_type.current-value,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if root.selected-tab == 3 : Rectangle {
+                x: 24px;
+                y: 184px;
+                width: parent.width - 48px;
+                height: parent.height - 208px;
+                background: transparent;
+
+                Rectangle {
+                    x: 0;
+                    y: 0;
+                    width: 304px;
+                    height: parent.height;
+                    border-radius: 22px;
+                    background: #192118;
+
+                    Text {
+                        x: 20px;
+                        y: 20px;
+                        width: parent.width - 40px;
+                        text: root.active-workout-title;
+                        color: #f7f1e2;
+                        font-size: 22px;
+                        font-weight: 800;
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        x: 20px;
+                        y: 62px;
+                        width: parent.width - 40px;
+                        text: root.active-workout-subtitle + "\n" + root.workout-progress;
+                        color: #b8ab91;
+                        font-size: 13px;
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        x: 20px;
+                        y: 118px;
+                        text: "Exercise rail";
+                        color: #f6efdf;
+                        font-size: 14px;
+                        font-weight: 700;
+                    }
+
+                    ScrollView {
+                        x: 14px;
+                        y: 150px;
+                        width: parent.width - 28px;
+                        height: parent.height - 230px;
+
+                        VerticalBox {
+                            width: parent.width - 20px;
+                            spacing: 10px;
+
+                            for workout-exercise in root.workout-exercises : Rectangle {
+                                height: 96px;
+                                border-radius: 18px;
+                                background: #263027;
+                                border-color: #425444;
+                                border-width: workout-exercise.badge == "Current" ? 2px : 1px;
+
+                                Text {
+                                    x: 16px;
+                                    y: 14px;
+                                    text: workout-exercise.title;
+                                    color: #f7f1e2;
+                                    font-size: 17px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    x: 16px;
+                                    y: 42px;
+                                    width: parent.width - 32px;
+                                    text: workout-exercise.subtitle;
+                                    color: #b8ab91;
+                                    font-size: 12px;
+                                    wrap: word-wrap;
+                                }
+
+                                Text {
+                                    x: 16px;
+                                    y: 68px;
+                                    text: workout-exercise.badge;
+                                    color: workout-exercise.badge == "Done" ? #b7d18f : #d4bc7c;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                }
+
+                                TouchArea {
+                                    clicked => { root.select-active-exercise(workout-exercise.index); }
+                                }
+                            }
+                        }
+                    }
+
+                    Button {
+                        x: 20px;
+                        y: parent.height - 62px;
+                        width: parent.width - 40px;
+                        text: "Finish workout";
+                        enabled: root.has-active-workout;
+                        clicked => { root.finish-workout(); }
+                    }
+                }
+
+                Rectangle {
+                    x: 326px;
+                    y: 0;
+                    width: parent.width - 326px;
+                    height: parent.height;
+                    border-radius: 22px;
+                    background: #fbf7ee;
+                    border-color: #d8c5a2;
+                    border-width: 1px;
+
+                    Rectangle {
+                        x: 18px;
+                        y: 18px;
+                        width: parent.width - 36px;
+                        height: 146px;
+                        border-radius: 22px;
+                        background: #efe2c8;
+
+                        Text {
+                            x: 20px;
+                            y: 18px;
+                            text: "Previous";
+                            color: #8b7040;
+                            font-size: 12px;
+                            font-weight: 700;
+                        }
+
+                        Text {
+                            x: 20px;
+                            y: 38px;
+                            width: 210px;
+                            text: root.previous-exercise-title;
+                            color: #3f3524;
+                            font-size: 16px;
+                            font-weight: 700;
+                            wrap: word-wrap;
+                        }
+
+                        Text {
+                            x: 260px;
+                            y: 18px;
+                            text: "Current";
+                            color: #8b7040;
+                            font-size: 12px;
+                            font-weight: 700;
+                        }
+
+                        Text {
+                            x: 260px;
+                            y: 38px;
+                            width: parent.width - 520px;
+                            text: root.current-exercise-title;
+                            color: #20190f;
+                            font-size: 28px;
+                            font-weight: 800;
+                            wrap: word-wrap;
+                        }
+
+                        Text {
+                            x: 260px;
+                            y: 84px;
+                            width: parent.width - 520px;
+                            text: root.current-exercise-description;
+                            color: #635743;
+                            font-size: 13px;
+                            wrap: word-wrap;
+                        }
+
+                        Text {
+                            x: parent.width - 210px;
+                            y: 18px;
+                            width: 190px;
+                            text: "Next";
+                            color: #8b7040;
+                            font-size: 12px;
+                            font-weight: 700;
+                            horizontal-alignment: right;
+                        }
+
+                        Text {
+                            x: parent.width - 210px;
+                            y: 38px;
+                            width: 190px;
+                            text: root.next-exercise-title;
+                            color: #3f3524;
+                            font-size: 16px;
+                            font-weight: 700;
+                            horizontal-alignment: right;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    Rectangle {
+                        x: 18px;
+                        y: 176px;
+                        width: parent.width - 36px;
+                        height: 76px;
+                        border-radius: 18px;
+                        background: #192118;
+
+                        Text {
+                            x: 18px;
+                            y: 16px;
+                            width: parent.width - 36px;
+                            text: root.rest-hint;
+                            color: #f6efdf;
+                            font-size: 14px;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    ScrollView {
+                        x: 18px;
+                        y: 266px;
+                        width: parent.width - 36px;
+                        height: parent.height - 284px;
+
+                        VerticalBox {
+                            width: parent.width - 20px;
+                            spacing: 12px;
+
+                            for workout-set in root.workout-sets : Rectangle {
+                                height: 150px;
+                                border-radius: 20px;
+                                background: workout-set.status == "Done" ? #edf3de : #efe7d7;
+                                border-color: workout-set.status == "PR" ? #be9938 : #dfcfb0;
+                                border-width: workout-set.status == "PR" ? 2px : 1px;
+
+                                Text {
+                                    x: 18px;
+                                    y: 16px;
+                                    text: workout-set.title;
+                                    color: #20190f;
+                                    font-size: 18px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    x: 18px;
+                                    y: 42px;
+                                    width: parent.width - 36px;
+                                    text: workout-set.plan;
+                                    color: #8a6b2b;
+                                    font-size: 13px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    x: 18px;
+                                    y: 64px;
+                                    width: parent.width - 36px;
+                                    text: workout-set.reference;
+                                    color: #635743;
+                                    font-size: 12px;
+                                    wrap: word-wrap;
+                                }
+
+                                Text {
+                                    x: 18px;
+                                    y: 86px;
+                                    width: parent.width - 36px;
+                                    text: workout-set.actual;
+                                    color: #3f3524;
+                                    font-size: 13px;
+                                }
+
+                                HorizontalBox {
+                                    x: 18px;
+                                    y: 108px;
+                                    width: parent.width - 36px;
+                                    height: 28px;
+                                    spacing: 10px;
+
+                                    actual_reps := LineEdit {
+                                        placeholder-text: "Reps";
+                                        text: "";
+                                        enabled: workout-set.status != "Done";
+                                    }
+                                    actual_weight := LineEdit {
+                                        placeholder-text: "Weight";
+                                        text: "";
+                                        enabled: workout-set.status != "Done";
+                                    }
+                                    actual_duration := LineEdit {
+                                        placeholder-text: "Duration";
+                                        text: "";
+                                        enabled: workout-set.status != "Done";
+                                    }
+                                    Button {
+                                        text: workout-set.status == "Done" ? "Logged" : "Complete";
+                                        enabled: workout-set.status != "Done";
+                                        clicked => {
+                                            root.complete-set(
+                                                workout-set.exercise_index,
+                                                workout-set.set_index,
+                                                actual_reps.text,
+                                                actual_weight.text,
+                                                actual_duration.text,
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
