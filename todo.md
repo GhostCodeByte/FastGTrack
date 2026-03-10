@@ -18,3 +18,5 @@
 - Spaetere Features wie Notifications, Widgets, Import/Export und Android-spezifische Bridges werden als vorbereitete Erweiterungspunkte beruecksichtigt, aber nicht komplett ausgebaut.
 - Aktueller Stand: Desktop-MVP mit SQLite-Datenbank, Starter-Uebungen, Template-Builder, Workout-Ansicht, Session-Speicherung und PR-Erkennung.
 - Verifiziert mit `cargo check`, `cargo fmt` und `cargo test`.
+- Android-Testpfad vorbereitet: `cargo-apk`, Rust-Targets, Android-Manifest-Metadaten und APK-Build-Skript vorhanden.
+- APK erfolgreich gebaut: `target/debug/apk/fastgtrack-debug.apk`; Installation am Emulator aktuell wegen zu wenig `/data`-Speicher fehlgeschlagen.
