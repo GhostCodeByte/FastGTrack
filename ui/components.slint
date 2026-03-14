@@ -1,0 +1,229 @@
+import { HorizontalBox, VerticalBox, ScrollView } from "std-widgets.slint";
+import { UiVars } from "theme.slint";
+
+export component Panel inherits Rectangle {
+    in property <color> fill: UiVars.surface;
+    in property <color> stroke: UiVars.border-strong;
+    background: fill;
+    border-color: stroke;
+    border-width: UiVars.border-width;
+    drop-shadow-color: UiVars.ink;
+    drop-shadow-offset-x: 3px;
+    drop-shadow-offset-y: 3px;
+    drop-shadow-blur: 0px;
+}
+
+export component SectionLabel inherits Text {
+    color: UiVars.ink;
+    font-size: UiVars.heading-size + 1px;
+    font-weight: 800;
+    letter-spacing: 3.5px;
+}
+
+export component SmallNote inherits Text {
+    color: UiVars.ink-soft;
+    font-size: UiVars.note-size;
+    font-weight: 600;
+    letter-spacing: 1px;
+    wrap: word-wrap;
+}
+
+export component ActionButton inherits Rectangle {
+    in property <string> label;
+    in property <color> fill: UiVars.accent;
+    in property <color> text-color: UiVars.ink;
+    in property <bool> outlined: false;
+    in property <bool> disabled: false;
+    callback clicked;
+
+    background: disabled ? UiVars.panel-bg-strong : outlined ? UiVars.panel-bg-soft : fill;
+    border-color: UiVars.ink;
+    border-width: UiVars.border-width;
+    opacity: disabled ? 0.55 : 1.0;
+    drop-shadow-color: UiVars.ink;
+    drop-shadow-offset-x: 3px;
+    drop-shadow-offset-y: 3px;
+    drop-shadow-blur: 0px;
+
+    Text {
+        text: root.label;
+        color: root.disabled ? UiVars.ink-muted : root.outlined ? UiVars.ink : root.text-color;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    TouchArea {
+        enabled: !root.disabled;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component BrutalistDayToggle inherits HorizontalBox {
+    padding: 0;
+    spacing: 6px;
+    in-out property <[bool]> active-days: [false, false, false, false, false, false, false];
+    property <[string]> day-names: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
+    for day[i] in day-names : Rectangle {
+        horizontal-stretch: 1;
+        height: 38px;
+        background: root.active-days[i] ? UiVars.accent : UiVars.surface;
+        border-color: UiVars.ink;
+        border-width: UiVars.border-width;
+        drop-shadow-color: UiVars.ink;
+        drop-shadow-offset-x: 3px;
+        drop-shadow-offset-y: 3px;
+        drop-shadow-blur: 0px;
+
+        Text {
+            text: day;
+            color: UiVars.ink;
+            font-size: 11px;
+            font-weight: root.active-days[i] ? 900 : 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        TouchArea {
+            clicked => {
+                root.active-days[i] = !root.active-days[i];
+            }
+        }
+    }
+}
+
+export component NavItem inherits Rectangle {
+    in property <string> label;
+    in property <string> glyph;
+    in property <bool> active;
+    callback tapped;
+
+    background: transparent;
+
+    width: UiVars.nav-item-size * 1.5;
+
+    VerticalLayout {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        alignment: center;
+        spacing: UiVars.nav-icon-label-gap;
+
+        Rectangle {
+            width: UiVars.nav-item-size;
+            height: UiVars.nav-item-size;
+            background: root.active ? UiVars.accent : UiVars.surface-soft;
+            border-color: root.active ? UiVars.foreground : UiVars.border-soft;
+            border-width: root.active ? UiVars.border-width : 1px;
+
+            Text {
+                text: root.glyph;
+                color: root.active ? UiVars.foreground : UiVars.foreground-muted;
+                font-size: 15px;
+                font-weight: 800;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+    }
+
+    TouchArea {
+        clicked => { root.tapped(); }
+    }
+}
+
+export component BrutalistDropdown inherits Rectangle {
+    in property <[string]> model;
+    in-out property <string> current-value;
+    in-out property <bool> is-open: false;
+    callback changed;
+
+    height: 38px;
+    background: UiVars.surface;
+    border-color: UiVars.ink;
+    border-width: UiVars.border-width;
+    drop-shadow-color: UiVars.ink;
+    drop-shadow-offset-x: 3px;
+    drop-shadow-offset-y: 3px;
+    drop-shadow-blur: 0px;
+
+    HorizontalBox {
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 0;
+        padding-bottom: 0;
+
+        Text {
+            text: root.current-value == "" && root.model.length > 0 ? root.model[0] : root.current-value;
+            color: UiVars.ink;
+            font-size: 13px;
+            font-weight: 800;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+
+        Text {
+            text: root.is-open ? "^" : "v";
+            color: UiVars.ink;
+            font-size: 13px;
+            font-weight: 900;
+            vertical-alignment: center;
+        }
+    }
+
+    TouchArea {
+        clicked => {
+            root.is-open = !root.is-open;
+        }
+    }
+
+    if root.is-open : Rectangle {
+        y: parent.height + 4px;
+        width: parent.width;
+        height: root.model.length > 4 ? 152px : root.model.length * 38px;
+        background: UiVars.surface;
+        border-color: UiVars.ink;
+        border-width: UiVars.border-width;
+        drop-shadow-color: UiVars.ink;
+        drop-shadow-offset-x: 3px;
+        drop-shadow-offset-y: 3px;
+        drop-shadow-blur: 0px;
+        z: 100;
+
+        ScrollView {
+            width: parent.width;
+            height: parent.height;
+            VerticalBox {
+                padding: 0;
+                spacing: 0;
+                for item in root.model : Rectangle {
+                    height: 38px;
+                    background: item == root.current-value ? UiVars.accent : transparent;
+
+                    Text {
+                        x: 14px;
+                        text: item;
+                        color: UiVars.ink;
+                        font-size: 13px;
+                        font-weight: 800;
+                        vertical-alignment: center;
+                        width: parent.width - 28px;
+                        height: parent.height;
+                    }
+                    TouchArea {
+                        clicked => {
+                            root.current-value = item;
+                            root.is-open = false;
+                            root.changed();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

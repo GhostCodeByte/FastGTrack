@@ -1,0 +1,94 @@
+import { ListView } from "std-widgets.slint";
+
+import { ExerciseRow } from "../types.slint";
+import { UiVars } from "../theme.slint";
+import { Panel, SectionLabel, SmallNote } from "../components.slint";
+
+export component ExerciseScreen inherits Rectangle {
+    in-out property <bool> animation-tick: false;
+    in property <[ExerciseRow]> exercises: [];
+    in property <string> status-message: "";
+
+    VerticalLayout {
+        padding: UiVars.page-padding;
+        spacing: 0;
+
+        SectionLabel { text: "LIBRARY"; }
+        Rectangle { height: UiVars.section-title-gap; }
+
+        Rectangle {
+            vertical-stretch: 1;
+
+            ListView {
+                width: parent.width;
+                height: parent.height;
+
+                for exercise in root.exercises : Rectangle {
+                    horizontal-stretch: 1;
+                    height: 126px;
+
+                    Panel {
+                        y: 0;
+                        width: parent.width;
+                        height: 118px;
+
+                        Rectangle {
+                            visible: exercise.has_images;
+                            x: 10px;
+                            y: 14px;
+                            width: 50px;
+                            height: 50px;
+                            property <bool> show-tension: false;
+
+                            Image {
+                                width: 100%;
+                                height: 100%;
+                                source: parent.show-tension ? exercise.image_tension : exercise.image_relaxed;
+                                image-fit: contain;
+                            }
+
+                            TouchArea {
+                                clicked => { parent.show-tension = !parent.show-tension; }
+                            }
+                        }
+
+                        Text {
+                            x: exercise.has_images ? 70px : 14px;
+                            y: 10px;
+                            width: parent.width - (exercise.has_images ? 84px : 28px);
+                            text: exercise.name;
+                            color: UiVars.ink;
+                            font-size: 15px;
+                            font-weight: 800;
+                            overflow: elide;
+                        }
+
+                        Text {
+                            x: exercise.has_images ? 70px : 14px;
+                            y: 30px;
+                            width: parent.width - (exercise.has_images ? 84px : 28px);
+                            text: exercise.meta;
+                            color: UiVars.ink-soft;
+                            font-size: 10px;
+                            font-weight: 700;
+                            letter-spacing: 0.8px;
+                            overflow: elide;
+                        }
+
+                        SmallNote {
+                            x: exercise.has_images ? 70px : 14px;
+                            y: 48px;
+                            width: parent.width - (exercise.has_images ? 84px : 28px);
+                            height: 52px;
+                            text: exercise.description;
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle { height: 6px; }
+        SmallNote { text: root.status-message; }
+        Rectangle { height: 14px; }
+    }
+}

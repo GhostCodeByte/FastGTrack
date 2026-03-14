@@ -1,0 +1,651 @@
+import { ScrollView, VerticalBox } from "std-widgets.slint";
+import { WorkoutSetRow, WorkoutExerciseRow } from "../types.slint";
+import { UiVars } from "../theme.slint";
+import { Panel, ActionButton } from "../components.slint";
+
+export component WorkoutScreen inherits Rectangle {
+    in property <[WorkoutSetRow]> workout-sets: [];
+    in property <[WorkoutExerciseRow]> workout-exercises: [];
+    in property <string> active-workout-title: "No active workout";
+    in property <string> current-exercise-title: "No exercise selected";
+    in property <string> current-exercise-description: "";
+    in property <bool> has-active-workout: false;
+    in-out property <int> active-rest-timer: 0;
+    in property <int> active-rest-duration: 0;
+    in property <int> current-exercise-index: 0;
+
+    callback complete-set(int, int, string, string, string);
+    callback finish-workout();
+    callback minimize-session();
+    callback add-active-set(int);
+    callback select-active-exercise(int);
+
+    background: UiVars.screen-bg;
+
+    // ── HEADER BAR (56px) ─────────────────────────────────────────
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: 56px;
+        background: UiVars.screen-bg;
+        z: 10;
+
+        // Bottom border
+        Rectangle {
+            y: parent.height - 2px;
+            width: parent.width;
+            height: 2px;
+            background: UiVars.ink;
+        }
+
+        // Back / minimize button
+        Rectangle {
+            x: UiVars.page-padding;
+            y: 10px;
+            width: 36px;
+            height: 36px;
+            background: UiVars.accent;
+            border-color: UiVars.ink;
+            border-width: UiVars.border-width;
+            drop-shadow-color: UiVars.ink;
+            drop-shadow-offset-x: 2px;
+            drop-shadow-offset-y: 2px;
+            drop-shadow-blur: 0px;
+
+            Text {
+                text: "<";
+                color: UiVars.ink;
+                font-size: 18px;
+                font-weight: 900;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            TouchArea {
+                clicked => { root.minimize-session(); }
+            }
+        }
+
+        // Workout title
+        Text {
+            x: 60px;
+            y: 0;
+            width: parent.width - 120px;
+            height: 56px;
+            text: root.active-workout-title;
+            color: UiVars.ink;
+            font-size: 14px;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        // Options placeholder
+        Rectangle {
+            x: parent.width - UiVars.page-padding - 36px;
+            y: 10px;
+            width: 36px;
+            height: 36px;
+            background: transparent;
+
+            Text {
+                text: "...";
+                color: UiVars.ink;
+                font-size: 16px;
+                font-weight: 900;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // ── SCROLLABLE BODY ───────────────────────────────────────────
+    ScrollView {
+        x: 0;
+        y: 56px;
+        width: parent.width;
+        height: parent.height - 56px;
+
+        VerticalBox {
+            alignment: start;
+            padding-left: UiVars.page-padding;
+            padding-right: UiVars.page-padding;
+            padding-top: 8px;
+            padding-bottom: 20px;
+            spacing: 6px;
+
+            // ── ALL PREVIOUS EXERCISE BOXES ───────────────────────
+            // Render one box per exercise that comes BEFORE the current one
+            for ex in root.workout-exercises : Rectangle {
+                // Only show exercises before the current index
+                visible: ex.index < root.current-exercise-index;
+                height: ex.index < root.current-exercise-index ? 44px : 0px;
+                horizontal-stretch: 1;
+                background: UiVars.panel-bg-strong;
+                border-color: UiVars.ink;
+                border-width: ex.index < root.current-exercise-index ? UiVars.border-width : 0px;
+                drop-shadow-color: UiVars.ink;
+                drop-shadow-offset-x: 2px;
+                drop-shadow-offset-y: 2px;
+                drop-shadow-blur: 0px;
+                opacity: 0.55;
+                clip: true;
+
+                // Upward arrow indicator
+                Text {
+                    x: 12px;
+                    y: 0;
+                    width: 18px;
+                    height: parent.height;
+                    text: "\u{2191}";
+                    color: UiVars.ink;
+                    font-size: 12px;
+                    font-weight: 900;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                }
+
+                // Exercise name
+                Text {
+                    x: 32px;
+                    y: 0;
+                    height: parent.height;
+                    width: parent.width - 70px;
+                    text: ex.title;
+                    color: UiVars.ink;
+                    font-size: 12px;
+                    font-weight: 700;
+                    letter-spacing: 0.5px;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
+                // Done checkbox (yellow with checkmark if badge == "Done")
+                Rectangle {
+                    x: parent.width - 36px;
+                    y: 10px;
+                    width: 24px;
+                    height: 24px;
+                    background: ex.badge == "Done" ? UiVars.accent : transparent;
+                    border-color: UiVars.ink;
+                    border-width: UiVars.border-width;
+
+                    if ex.badge == "Done" : Text {
+                        text: "\u{2713}";
+                        color: UiVars.ink;
+                        font-size: 14px;
+                        font-weight: 900;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        width: 100%;
+                        height: 100%;
+                    }
+                }
+
+                TouchArea {
+                    clicked => {
+                        root.select-active-exercise(ex.index);
+                    }
+                }
+            }
+
+            // ── MAIN EXERCISE CARD ────────────────────────────────
+            Panel {
+                horizontal-stretch: 1;
+
+                // Swipe gesture overlay for exercise switching
+                private property <length> swipe-start-y: 0px;
+                private property <bool> swipe-tracking: false;
+
+                TouchArea {
+                    z: 0;
+                    pointer-event(ev) => {
+                        if ev.kind == PointerEventKind.down {
+                            parent.swipe-start-y = self.mouse-y;
+                            parent.swipe-tracking = true;
+                        } else if ev.kind == PointerEventKind.up && parent.swipe-tracking {
+                            parent.swipe-tracking = false;
+                            if self.mouse-y - parent.swipe-start-y > 60px {
+                                root.select-active-exercise(root.current-exercise-index - 1);
+                            } else if parent.swipe-start-y - self.mouse-y > 60px {
+                                root.select-active-exercise(root.current-exercise-index + 1);
+                            }
+                        } else if ev.kind == PointerEventKind.cancel {
+                            parent.swipe-tracking = false;
+                        }
+                    }
+                }
+
+                VerticalBox {
+                    padding: 14px;
+                    spacing: 12px;
+
+                    // ── EXERCISE HEADER & DESCRIPTION ─────────────
+                    VerticalBox {
+                        padding: 0;
+                        spacing: 8px;
+
+                        // Title row with done-checkbox on the right
+                        Rectangle {
+                            height: 32px;
+                            horizontal-stretch: 1;
+                            background: transparent;
+
+                            // Exercise title
+                            Text {
+                                x: 0;
+                                y: 0;
+                                width: parent.width - 40px;
+                                height: parent.height;
+                                text: root.current-exercise-title;
+                                color: UiVars.ink;
+                                font-size: 24px;
+                                font-weight: 900;
+                                font-italic: true;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+
+                            // Exercise-level done checkbox
+                            // Yellow + checkmark when ALL sets of this exercise are completed
+                            // (badge == "Done" on the current WorkoutExerciseRow means all sets done)
+                            Rectangle {
+                                x: parent.width - 32px;
+                                y: 4px;
+                                width: 24px;
+                                height: 24px;
+                                background: {
+                                    // find badge for current exercise
+                                    root.workout-exercises.length > root.current-exercise-index
+                                    && root.workout-exercises[root.current-exercise-index].badge == "Done"
+                                        ? UiVars.accent : transparent
+                                };
+                                border-color: UiVars.ink;
+                                border-width: UiVars.border-width;
+
+                                if root.workout-exercises.length > root.current-exercise-index
+                                   && root.workout-exercises[root.current-exercise-index].badge == "Done" : Text {
+                                    text: "\u{2713}";
+                                    color: UiVars.ink;
+                                    font-size: 14px;
+                                    font-weight: 900;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+                            }
+                        }
+
+                        if root.current-exercise-description != "" : Text {
+                            horizontal-stretch: 1;
+                            text: root.current-exercise-description;
+                            color: UiVars.ink-soft;
+                            font-size: 10px;
+                            font-weight: 700;
+                            letter-spacing: 1px;
+                            vertical-alignment: top;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    // ── Column headers ─────────────────────────────
+                    Rectangle {
+                        height: 12px;
+                        horizontal-stretch: 1;
+                        background: transparent;
+
+                        Text {
+                            x: 14px;
+                            y: 0;
+                            width: 24px;
+                            height: parent.height;
+                            text: "#";
+                            color: UiVars.ink-muted;
+                            font-size: 10px;
+                            font-weight: 800;
+                            letter-spacing: 0.5px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            x: 46px;
+                            y: 0;
+                            width: parent.width - 210px;
+                            height: parent.height;
+                            text: "PREVIOUS";
+                            color: UiVars.ink-muted;
+                            font-size: 10px;
+                            font-weight: 800;
+                            letter-spacing: 0.5px;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            x: parent.width - 158px;
+                            y: 0;
+                            width: 62px;
+                            height: parent.height;
+                            text: "KG";
+                            color: UiVars.ink-muted;
+                            font-size: 10px;
+                            font-weight: 800;
+                            letter-spacing: 0.5px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            x: parent.width - 86px;
+                            y: 0;
+                            width: 44px;
+                            height: parent.height;
+                            text: "REPS";
+                            color: UiVars.ink-muted;
+                            font-size: 10px;
+                            font-weight: 800;
+                            letter-spacing: 0.5px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // ── SET ROWS ───────────────────────────────────
+                    for row in root.workout-sets : VerticalBox {
+                        padding: 0;
+                        spacing: 12px;
+                        horizontal-stretch: 1;
+
+                        set-row := Rectangle {
+                            height: 56px;
+                            horizontal-stretch: 1;
+                            background: UiVars.surface;
+                            border-color: UiVars.ink;
+                            border-width: UiVars.border-width;
+                            drop-shadow-color: row.status == "Open" ? transparent : UiVars.ink;
+                            drop-shadow-offset-x: 3px;
+                            drop-shadow-offset-y: 3px;
+                            drop-shadow-blur: 0px;
+                            opacity: row.status == "Active" ? 1 : 0.45;
+
+                            property <string> live-kg: row.display_kg;
+                            property <string> live-reps: row.display_reps;
+
+                            // Set number
+                            Text {
+                                x: 14px;
+                                y: 0;
+                                width: 24px;
+                                height: parent.height;
+                                text: row.title;
+                                color: UiVars.ink;
+                                font-size: 14px;
+                                font-weight: 900;
+                                font-italic: true;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                            }
+
+                            // Previous reference
+                            Text {
+                                x: 46px;
+                                y: 0;
+                                width: parent.width - 210px;
+                                height: parent.height;
+                                text: row.reference == "" ? "NONE" : row.reference;
+                                color: UiVars.ink;
+                                font-size: 11px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+
+                            // KG Input Box
+                            Rectangle {
+                                x: parent.width - 158px;
+                                y: 12px;
+                                width: 62px;
+                                height: 32px;
+                                background: kg_input.has-focus ? UiVars.surface-strong : transparent;
+                                border-color: kg_input.has-focus ? UiVars.accent : UiVars.ink;
+                                border-width: UiVars.border-width;
+
+                                kg_input := TextInput {
+                                    width: 100%;
+                                    height: 100%;
+                                    text: row.display_kg;
+                                    color: UiVars.ink;
+                                    font-size: 16px;
+                                    font-weight: 800;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                    edited => { set-row.live-kg = self.text; }
+                                }
+                            }
+
+                            // REPS Input Box
+                            Rectangle {
+                                x: parent.width - 86px;
+                                y: 12px;
+                                width: 44px;
+                                height: 32px;
+                                background: reps_input.has-focus ? UiVars.surface-strong : transparent;
+                                border-color: reps_input.has-focus ? UiVars.accent : UiVars.ink;
+                                border-width: UiVars.border-width;
+
+                                reps_input := TextInput {
+                                    width: 100%;
+                                    height: 100%;
+                                    text: row.display_reps;
+                                    color: UiVars.ink;
+                                    font-size: 16px;
+                                    font-weight: 800;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                    edited => { set-row.live-reps = self.text; }
+                                }
+                            }
+
+                            // Set Checkbox
+                            Rectangle {
+                                x: parent.width - 34px;
+                                y: 16px;
+                                width: 24px;
+                                height: 24px;
+                                background: (row.status == "Done" || row.status == "PR") ? UiVars.accent : transparent;
+                                border-color: UiVars.ink;
+                                border-width: UiVars.border-width;
+
+                                if (row.status == "Done" || row.status == "PR") : Text {
+                                    text: "\u{2713}";
+                                    color: UiVars.ink;
+                                    font-size: 14px;
+                                    font-weight: 900;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+
+                                TouchArea {
+                                    clicked => {
+                                        root.complete-set(
+                                            row.exercise_index,
+                                            row.set_index,
+                                            set-row.live-reps,
+                                            set-row.live-kg,
+                                            ""
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        // Active rest timer bar
+                        if row.rest_after && root.active-rest-timer > 0 : Rectangle {
+                            height: 32px;
+                            horizontal-stretch: 1;
+                            background: transparent;
+                            border-color: UiVars.ink;
+                            border-width: UiVars.border-width;
+
+                            Rectangle {
+                                x: UiVars.border-width;
+                                y: UiVars.border-width;
+                                height: parent.height - (UiVars.border-width * 2);
+                                width: (parent.width - (UiVars.border-width * 2))
+                                    * (root.active-rest-duration > 0
+                                        ? ((root.active-rest-duration - root.active-rest-timer) / root.active-rest-duration)
+                                        : 0);
+                                background: UiVars.accent;
+                            }
+
+                            Text {
+                                property <int> m: root.active-rest-timer / 60;
+                                property <int> s: root.active-rest-timer - (m * 60);
+                                property <string> s_str: s < 10 ? "0\{s}" : "\{s}";
+                                text: "\{m}:\{s_str}";
+                                color: UiVars.ink;
+                                font-size: 14px;
+                                font-weight: 900;
+                                font-italic: true;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                width: 100%;
+                                height: 100%;
+                            }
+                        }
+
+                        // Rest label (static)
+                        if row.rest_label != "" && !(row.rest_after && root.active-rest-timer > 0) : Rectangle {
+                            height: 14px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "———  " + row.rest_label + "  ———";
+                                color: UiVars.ink-muted;
+                                font-size: 11px;
+                                font-weight: 800;
+                                letter-spacing: 1px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                width: 100%;
+                                height: 100%;
+                            }
+                        }
+                    }
+
+                    // ── ADD SET BUTTON ─────────────────────────────
+                    Rectangle {
+                        height: 48px;
+                        horizontal-stretch: 1;
+                        background: UiVars.surface;
+                        border-color: UiVars.ink;
+                        border-width: UiVars.border-width;
+                        drop-shadow-color: UiVars.ink;
+                        drop-shadow-offset-x: 3px;
+                        drop-shadow-offset-y: 3px;
+
+                        Text {
+                            text: "+ ADD SET";
+                            color: UiVars.ink;
+                            font-size: 14px;
+                            font-weight: 900;
+                            font-italic: true;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        TouchArea {
+                            clicked => { root.add-active-set(root.current-exercise-index); }
+                        }
+                    }
+                }
+            }
+
+            // Spacer between card and next-exercise boxes
+            Rectangle { height: 6px; }
+
+            // ── ALL NEXT EXERCISE BOXES ───────────────────────────
+            // Render one box per exercise that comes AFTER the current one
+            for ex in root.workout-exercises : Rectangle {
+                visible: ex.index > root.current-exercise-index;
+                height: ex.index > root.current-exercise-index ? 44px : 0px;
+                horizontal-stretch: 1;
+                background: UiVars.panel-bg-strong;
+                border-color: UiVars.ink;
+                border-width: ex.index > root.current-exercise-index ? UiVars.border-width : 0px;
+                drop-shadow-color: UiVars.ink;
+                drop-shadow-offset-x: 2px;
+                drop-shadow-offset-y: 2px;
+                drop-shadow-blur: 0px;
+                opacity: 0.55;
+                clip: true;
+
+                // Downward arrow indicator
+                Text {
+                    x: 12px;
+                    y: 0;
+                    width: 18px;
+                    height: parent.height;
+                    text: "\u{2193}";
+                    color: UiVars.ink;
+                    font-size: 12px;
+                    font-weight: 900;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                }
+
+                // Exercise name
+                Text {
+                    x: 32px;
+                    y: 0;
+                    height: parent.height;
+                    width: parent.width - 70px;
+                    text: ex.title;
+                    color: UiVars.ink;
+                    font-size: 12px;
+                    font-weight: 700;
+                    letter-spacing: 0.5px;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
+                // Done checkbox (shown but empty for future exercises)
+                Rectangle {
+                    x: parent.width - 36px;
+                    y: 10px;
+                    width: 24px;
+                    height: 24px;
+                    background: ex.badge == "Done" ? UiVars.accent : transparent;
+                    border-color: UiVars.ink;
+                    border-width: UiVars.border-width;
+
+                    if ex.badge == "Done" : Text {
+                        text: "\u{2713}";
+                        color: UiVars.ink;
+                        font-size: 14px;
+                        font-weight: 900;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        width: 100%;
+                        height: 100%;
+                    }
+                }
+
+                TouchArea {
+                    clicked => {
+                        root.select-active-exercise(ex.index);
+                    }
+                }
+            }
+
+            Rectangle { height: 16px; }
+        }
+    }
+}

@@ -1,6 +1,7 @@
 use chrono::{DateTime, Datelike, Local, NaiveDateTime, TimeZone};
 use serde::{Deserialize, Serialize};
 
+/// Represents the main muscle groups targeted by exercises.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum MuscleGroup {
     UpperBack,
@@ -15,6 +16,7 @@ pub enum MuscleGroup {
 }
 
 impl MuscleGroup {
+    /// Returns a human-readable label for the muscle group to be displayed in the UI.
     pub fn label(&self) -> &'static str {
         match self {
             Self::UpperBack => "Upper Back",
@@ -29,6 +31,7 @@ impl MuscleGroup {
         }
     }
 
+    /// Parses a string into a `MuscleGroup`, defaulting to `Chest` if the string doesn't match a known group.
     pub fn from_label(value: &str) -> Self {
         match value.trim().to_ascii_lowercase().as_str() {
             "upper back" | "upperback" => Self::UpperBack,
@@ -44,6 +47,7 @@ impl MuscleGroup {
     }
 }
 
+/// Represents the type of equipment required for an exercise.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Equipment {
     Barbell,
@@ -81,6 +85,7 @@ impl Equipment {
     }
 }
 
+/// Defines the type of set (e.g., standard, to failure, warmup) to customize tracking behavior.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SetType {
     Normal,
@@ -112,6 +117,7 @@ impl SetType {
     }
 }
 
+/// Specifies the type of weight being used (e.g., Kilograms, Pounds, or Bodyweight).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum WeightType {
     Kg,
@@ -133,6 +139,7 @@ impl WeightType {
     }
 }
 
+/// Identifies different types of Personal Records (PRs) that can be tracked.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RecordType {
     MaxWeight,
@@ -152,6 +159,7 @@ impl RecordType {
     }
 }
 
+/// Represents a single exercise in the database, containing its metadata and instructions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Exercise {
     pub id: i64,
@@ -165,17 +173,16 @@ pub struct Exercise {
     pub source: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct ExerciseInput {
-    pub id: Option<i64>,
+#[derive(Debug, Clone, Deserialize)]
+pub struct OptimizedExercise {
+    pub id: i64,
     pub name: String,
-    pub muscle_group: MuscleGroup,
-    pub equipment: Equipment,
     pub description: String,
-    pub is_timed: bool,
-    pub is_bodyweight: bool,
+    pub _filter_muscle: String,
+    pub _filter_equipment: String,
 }
 
+/// Represents a planned set within a workout template, describing what the user intends to do.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlannedSet {
     pub set_number: i32,
@@ -187,6 +194,7 @@ pub struct PlannedSet {
     pub rest_seconds: i32,
 }
 
+/// An exercise included in a workout template, containing multiple planned sets.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateExercise {
     pub id: i64,
@@ -196,31 +204,42 @@ pub struct TemplateExercise {
     pub planned_sets: Vec<PlannedSet>,
 }
 
+/// A complete workout template created by the user, defining a reusable routine.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkoutTemplate {
     pub id: i64,
     pub name: String,
+    pub icon: String,
     pub created_at: String,
     pub assigned_days: Vec<String>,
     pub exercises: Vec<TemplateExercise>,
 }
 
+/// An ongoing, draft set being created during the workout planning phase.
+#[derive(Debug, Clone)]
+pub struct DraftSet {
+    pub reps: Option<i32>,
+    pub duration_seconds: Option<i32>,
+    pub weight: Option<f32>,
+    pub rest_seconds: i32,
+}
+
+/// An exercise temporarily added to a draft template during creation or editing.
 #[derive(Debug, Clone)]
 pub struct TemplateDraftExercise {
     pub exercise_id: i64,
     pub exercise_name: String,
     pub set_type: SetType,
-    pub sets_count: i32,
-    pub reps: Option<i32>,
-    pub duration_seconds: Option<i32>,
-    pub weight: Option<f32>,
-    pub rest_seconds: i32,
     pub weight_type: WeightType,
+    pub sets: Vec<DraftSet>,
 }
 
+/// The current state of a template being actively edited or created before saving.
 #[derive(Debug, Clone)]
 pub struct TemplateDraft {
+    pub id: Option<i64>,
     pub name: String,
+    pub icon: String,
     pub assigned_days: Vec<String>,
     pub exercises: Vec<TemplateDraftExercise>,
 }
@@ -228,13 +247,17 @@ pub struct TemplateDraft {
 impl Default for TemplateDraft {
     fn default() -> Self {
         Self {
+            id: None,
             name: String::new(),
+            icon: String::from("chest"),
             assigned_days: Vec::new(),
             exercises: Vec::new(),
         }
     }
 }
 
+/// Represents a set being performed during an active workout session.
+/// Tracks both planned targets and actual achieved results.
 #[derive(Debug, Clone)]
 pub struct ActiveSet {
     pub set_number: i32,
@@ -252,6 +275,7 @@ pub struct ActiveSet {
     pub reference_label: String,
 }
 
+/// Represents an exercise currently being performed during an active workout session.
 #[derive(Debug, Clone)]
 pub struct ActiveExercise {
     pub exercise_id: i64,
@@ -260,18 +284,22 @@ pub struct ActiveExercise {
     pub sets: Vec<ActiveSet>,
 }
 
+/// The complete state of an ongoing workout session.
 #[derive(Debug, Clone)]
 pub struct ActiveWorkout {
     pub template_id: i64,
     pub template_name: String,
+    pub icon: String,
     pub started_at: DateTime<Local>,
     pub exercises: Vec<ActiveExercise>,
 }
 
+/// A summary of a completed workout session, typically used for rendering the history list.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkoutSessionSummary {
     pub id: i64,
     pub template_name: String,
+    pub icon: String,
     pub started_at: String,
     pub finished_at: String,
     pub duration_seconds: i32,
@@ -286,6 +314,7 @@ pub struct ScheduleEntry {
     pub detail: String,
 }
 
+/// Represents a logged Personal Record (PR) for a specific exercise.
 #[derive(Debug, Clone)]
 pub struct PersonalRecord {
     pub exercise_id: i64,
@@ -293,6 +322,7 @@ pub struct PersonalRecord {
     pub value: f32,
 }
 
+/// Normalizes a comma-separated string of days into a vector of properly capitalized strings.
 pub fn normalize_days(input: &str) -> Vec<String> {
     input
         .split(',')
@@ -302,6 +332,7 @@ pub fn normalize_days(input: &str) -> Vec<String> {
         .collect()
 }
 
+/// Ensures a day string is correctly capitalized (e.g. "mon" -> "Monday").
 pub fn capitalize_day(value: &str) -> String {
     let lower = value.trim().to_ascii_lowercase();
     match lower.as_str() {
@@ -322,10 +353,12 @@ pub fn capitalize_day(value: &str) -> String {
     }
 }
 
+/// Returns the current local time formatted as a string (YYYY-MM-DD HH:MM).
 pub fn now_stamp() -> String {
     Local::now().format("%Y-%m-%d %H:%M").to_string()
 }
 
+/// Formats an integer amount of seconds into a human-readable duration string (e.g. "1m 30s").
 pub fn format_duration(seconds: i32) -> String {
     let minutes = seconds / 60;
     let remainder = seconds % 60;
@@ -336,6 +369,7 @@ pub fn format_duration(seconds: i32) -> String {
     }
 }
 
+/// Formats an optional float, removing the fractional part if it's zero, or replacing None with a dash.
 pub fn format_optional_number(value: Option<f32>) -> String {
     match value {
         Some(number) if (number.fract() - 0.0).abs() < f32::EPSILON => format!("{number:.0}"),
@@ -344,6 +378,7 @@ pub fn format_optional_number(value: Option<f32>) -> String {
     }
 }
 
+/// Formats the planned goal of a given `ActiveSet` for display in the UI.
 pub fn format_set_plan(set: &ActiveSet) -> String {
     if let Some(duration) = set.planned_duration {
         format!("{} for {}", set.set_type.label(), format_duration(duration))
@@ -366,6 +401,7 @@ pub fn format_set_plan(set: &ActiveSet) -> String {
     }
 }
 
+/// Formats the actually achieved (completed) metrics of an `ActiveSet` for UI display.
 pub fn format_set_actual(set: &ActiveSet) -> String {
     if !set.completed {
         return "Open".into();
@@ -390,6 +426,7 @@ pub fn format_set_actual(set: &ActiveSet) -> String {
     format!("{} reps / {}", reps, weight)
 }
 
+/// Formats a date string into a relative format like "today" or "2 days ago" if recent.
 pub fn format_relative_day(stamp: &str) -> String {
     if let Ok(parsed_naive) = NaiveDateTime::parse_from_str(stamp, "%Y-%m-%d %H:%M") {
         let Some(parsed) = Local.from_local_datetime(&parsed_naive).single() else {
@@ -408,6 +445,7 @@ pub fn format_relative_day(stamp: &str) -> String {
     }
 }
 
+/// Generates a list of weekday names starting from the current day.
 pub fn weekday_order() -> Vec<String> {
     let today = Local::now().weekday().num_days_from_monday() as usize;
     let weekdays = [

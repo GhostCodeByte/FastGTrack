@@ -1,0 +1,51 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
+fn get_svg_strings() -> &'static std::collections::HashMap<i64, (String, String)> {
+    static SVGS: std::sync::OnceLock<std::collections::HashMap<i64, (String, String)>> = std::sync::OnceLock::new();
+    SVGS.get_or_init(|| {
+        let json = include_str!("../exercises/optimized_exercises.json");
+        
+        #[derive(serde::Deserialize)]
+        struct Ex {
+            id: i64,
+            svg_images: Option<Vec<String>>,
+        }
+        
+        let exercises: Vec<Ex> = serde_json::from_str(json).unwrap_or_default();
+        let mut map = std::collections::HashMap::new();
+        for ex in exercises {
+            if let Some(mut svgs) = ex.svg_images {
+                if svgs.len() >= 2 {
+                    let t = svgs.pop().unwrap();
+                    let r = svgs.pop().unwrap();
+                    map.insert(ex.id, (r, t));
+                }
+            }
+        }
+        map
+    })
+}
+
+pub fn get_cached_images(id: i64) -> Option<(slint::Image, slint::Image)> {
+    thread_local! {
+        static IMAGE_CACHE: std::cell::RefCell<std::collections::HashMap<i64, (slint::Image, slint::Image)>> = std::cell::RefCell::new(std::collections::HashMap::new());
+    }
+    
+    IMAGE_CACHE.with(|cache| {
+        let mut map = cache.borrow_mut();
+        if let Some(imgs) = map.get(&id) {
+            return Some(imgs.clone());
+        }
+        
+        if let Some((r_str, t_str)) = get_svg_strings().get(&id) {
+            let r = slint::Image::load_from_svg_data(r_str.as_bytes()).unwrap_or_default();
+            let t = slint::Image::load_from_svg_data(t_str.as_bytes()).unwrap_or_default();
+            map.insert(id, (r.clone(), t.clone()));
+            Some((r, t))
+        } else {
+            None
+        }
+    })
+}

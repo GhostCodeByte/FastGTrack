@@ -1,0 +1,110 @@
+/// Represents an exercise listing in the UI, including its loaded image assets.
+export struct ExerciseRow {
+    id: int,
+    name: string,
+    meta: string,
+    description: string,
+    source: string,
+    has_images: bool,
+    image_relaxed: image,
+    image_tension: image,
+}
+
+/// Provides a basic preview summary of a created workout template.
+export struct TemplateCard {
+    id: int,
+    name: string,
+    icon: string,
+    days: string,
+    info: string,
+    created_at: string,
+}
+
+/// A summarized display card showing a past workout's main metrics.
+export struct SessionCard {
+    icon: string,
+    title: string,
+    subtitle: string,
+    metric: string,
+}
+
+/// Display data for an upcoming planned workout in the schedule view.
+export struct ScheduleCard {
+    day: string,
+    title: string,
+    detail: string,
+}
+
+/// Represents an uncommitted intended set inside the template builder.
+export struct DraftSetRow {
+    reps: string,
+    weight: string,
+    rest: string,
+}
+
+/// Contains the overall state of a draft exercise, grouping all its intended sets together.
+export struct DraftExerciseRow {
+    index: int,
+    title: string,
+    detail: string,
+    sets_count: int,
+    sets: [DraftSetRow],
+}
+
+/// Represents an exercise in an ongoing workout, tracking if it is current, done, or queued.
+export struct WorkoutExerciseRow {
+    index: int,
+    title: string,
+    subtitle: string,
+    badge: string,
+}
+
+/// Data structure for rendering an individual editable set in an active workout session.
+export struct WorkoutSetRow {
+    exercise_index: int,
+    set_index: int,
+    title: string,
+    plan: string,
+    actual: string,
+    reference: string,
+    status: string,
+    rest_after: bool,
+    rest_label: string,
+    display_kg: string,
+    display_reps: string,
+}
+
+/// Used in the top week bar to indicate which days of the week have logged sessions.
+export struct WeekdayProgress {
+    label: string,
+    icon: string,
+    active: bool,
+    current: bool,
+}
+
+/// Backs the calendar UI component, denoting which dates have activity.
+export struct StatsCalendarDay {
+    day: int,
+    active: bool,
+    is-today: bool,
+}
+
+/// The UI model for tracking how many times an exercise was performed.
+export struct StatsExerciseRow {
+    name: string,
+    count-label: string,
+}
+
+/// Tracks a progression metric for a Personal Record with a specific trend indicator (e.g. +5% or STABLE).
+export struct StatsPrRow {
+    name: string,
+    current-weight: string,
+    last-weight: string,
+    trend: string,
+}
+
+/// Displays how many times a given specific workout plan has been executed.
+export struct StatsPlanRow {
+    name: string,
+    session-count: string,
+}

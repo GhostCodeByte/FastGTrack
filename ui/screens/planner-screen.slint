@@ -1,0 +1,497 @@
+import { ScrollView, ListView, VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { DraftExerciseRow, ExerciseRow } from "../types.slint";
+import { UiVars } from "../theme.slint";
+import { Panel, SmallNote, ActionButton, BrutalistDayToggle, BrutalistDropdown } from "../components.slint";
+import { DynamicIcon, IconData } from "../generated_icons.slint";
+
+export component PlannerScreen inherits Rectangle {
+    in property <[ExerciseRow]> exercises: [];
+    in property <[DraftExerciseRow]> draft-exercises: [];
+    in-out property <bool> is-search-open: false;
+    in-out property <string> search-query: "";
+    in-out property <string> filter-muscle: "All Muscles";
+    in-out property <string> sort-by: "Most Used";
+    in property <string> status-message: "";
+    in-out property <string> template-name: "";
+    in-out property <string> template-icon: "chest";
+    in-out property <[bool]> active-days: [false, false, false, false, false, false, false];
+
+    callback search-query-changed();
+    callback add-draft-exercise(int, string, string, string, string, string, string, string);
+    callback clear-draft();
+    callback remove-draft-exercise(int);
+    callback save-template(string, string, string);
+    callback add-set(int);
+    callback remove-set(int, int);
+    callback update-set(int, int, string, string, string);
+
+    background: UiVars.screen-bg;
+
+    Rectangle {
+        visible: root.is-search-open;
+        width: parent.width;
+        height: parent.height;
+        background: UiVars.screen-bg;
+
+        VerticalBox {
+            width: parent.width;
+            padding: UiVars.page-padding;
+            spacing: 12px;
+
+            HorizontalBox {
+                padding: 0;
+                spacing: 8px;
+                height: 48px;
+
+                ActionButton {
+                    width: 48px;
+                    height: 48px;
+                    label: "<";
+                    fill: UiVars.surface;
+                    clicked => { root.is-search-open = false; }
+                }
+
+                Panel {
+                    horizontal-stretch: 1;
+                    height: 48px;
+                    stroke: search_input.has-focus ? UiVars.accent : UiVars.border-strong;
+
+                    search_input := TextInput {
+                        width: parent.width - 28px;
+                        height: parent.height;
+                        x: 14px;
+                        vertical-alignment: center;
+                        text <=> root.search-query;
+                        font-size: 14px;
+                        font-weight: 800;
+                        color: UiVars.ink;
+                        edited => { root.search-query-changed(); }
+                    }
+
+                    if root.search-query == "" : Text {
+                        x: 14px;
+                        width: parent.width - 28px;
+                        height: parent.height;
+                        text: "Search exercises...";
+                        color: UiVars.ink-muted;
+                        font-size: 14px;
+                        font-weight: 800;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            HorizontalBox {
+                padding: 0;
+                spacing: 8px;
+                height: 38px;
+                z: 100;
+
+                BrutalistDropdown {
+                    horizontal-stretch: 1;
+                    model: ["All Muscles", "Chest", "Upper Back", "Lower Back", "Shoulders", "Arms", "Core", "Legs", "Glutes", "Cardio"];
+                    current-value <=> root.filter-muscle;
+                    changed => { root.search-query-changed(); }
+                }
+
+                BrutalistDropdown {
+                    horizontal-stretch: 1;
+                    model: ["Most Used", "A-Z", "Most Growth", "Recent"];
+                    current-value <=> root.sort-by;
+                    changed => { root.search-query-changed(); }
+                }
+            }
+
+            ListView {
+                vertical-stretch: 1;
+
+                for exercise in root.exercises : Rectangle {
+                    horizontal-stretch: 1;
+                    height: 80px;
+
+                    Panel {
+                        width: parent.width;
+                        height: 72px;
+                        y: 0;
+
+                        Rectangle {
+                            visible: exercise.has_images;
+                            x: 10px;
+                            y: 11px;
+                            width: 50px;
+                            height: 50px;
+                            property <bool> show-tension: false;
+
+                            Image {
+                                width: 100%;
+                                height: 100%;
+                                source: parent.show-tension ? exercise.image_tension : exercise.image_relaxed;
+                                image-fit: contain;
+                            }
+
+                            TouchArea {
+                                clicked => { parent.show-tension = !parent.show-tension; }
+                            }
+                        }
+
+                        Text {
+                            x: exercise.has_images ? 70px : 14px;
+                            y: 12px;
+                            text: exercise.name;
+                            font-size: 14px;
+                            font-weight: 800;
+                            color: UiVars.ink;
+                        }
+
+                        Text {
+                            x: exercise.has_images ? 70px : 14px;
+                            y: 32px;
+                            text: exercise.meta;
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: UiVars.ink-soft;
+                        }
+
+                        ActionButton {
+                            x: parent.width - 62px;
+                            y: 18px;
+                            width: 48px;
+                            height: 36px;
+                            label: "ADD";
+                            clicked => {
+                                root.add-draft-exercise(exercise.id, "Normal", "3", "8", "", "0", "90", "Kg");
+                                root.is-search-open = false;
+                                root.search-query = "";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        visible: !root.is-search-open;
+        width: parent.width;
+        height: parent.height;
+        background: UiVars.screen-bg;
+
+        ScrollView {
+            width: parent.width;
+            height: parent.height;
+
+            VerticalBox {
+                width: parent.width;
+                alignment: start;
+                padding: UiVars.page-padding;
+                padding-bottom: 80px;
+                spacing: 0;
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 160px;
+
+                    Panel {
+                        width: parent.width;
+                        height: parent.height;
+
+                        SmallNote { x: 14px; y: 14px; text: "TEMPLATE NAME"; }
+                        SmallNote { x: parent.width - 56px; y: 14px; width: 42px; horizontal-alignment: center; text: "ICON"; }
+
+                        Rectangle {
+                            x: 14px;
+                            y: 30px;
+                            width: parent.width - 82px;
+                            height: 42px;
+                            background: template_name_input.has-focus ? UiVars.surface-strong : transparent;
+                            border-color: template_name_input.has-focus ? UiVars.accent : UiVars.ink;
+                            border-width: UiVars.border-width;
+
+                            template_name_input := TextInput {
+                                x: 14px;
+                                width: parent.width - 28px;
+                                height: parent.height;
+                                vertical-alignment: center;
+                                text <=> root.template-name;
+                                font-size: 14px;
+                                font-weight: 800;
+                                letter-spacing: 1px;
+                                color: UiVars.ink;
+                            }
+
+                            if root.template-name == "" : Text {
+                                x: 14px;
+                                width: parent.width - 28px;
+                                height: parent.height;
+                                text: "e.g. PUSH DAY HYPERTROPHY";
+                                color: UiVars.ink-muted;
+                                font-size: 14px;
+                                font-weight: 800;
+                                letter-spacing: 1px;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        Rectangle {
+                            x: parent.width - 56px;
+                            y: 30px;
+                            width: 42px;
+                            height: 42px;
+                            background: UiVars.surface;
+                            border-color: UiVars.ink;
+                            border-width: UiVars.border-width;
+
+                            DynamicIcon {
+                                width: 34px;
+                                height: 34px;
+                                icon-name: root.template-icon;
+                            }
+
+                            TouchArea {
+                                clicked => {
+                                    root.template-icon = IconData.next-icon(root.template-icon);
+                                }
+                            }
+                        }
+
+                        SmallNote { x: 14px; y: 86px; text: "SELECT DAYS"; }
+
+                        BrutalistDayToggle {
+                            x: 14px;
+                            y: 102px;
+                            width: parent.width - 31px;
+                            active-days <=> root.active-days;
+                        }
+                    }
+                }
+
+                Rectangle { height: UiVars.section-gap; }
+
+                for draft in root.draft-exercises : VerticalBox {
+                    padding: 0;
+                    spacing: 0;
+
+                    Panel {
+                        horizontal-stretch: 1;
+                        height: 134px + draft.sets_count * 44px;
+                        clip: true;
+
+                        VerticalBox {
+                            padding: 0;
+                            spacing: 0;
+
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 48px;
+                                background: UiVars.accent;
+
+                                Rectangle {
+                                    y: parent.height - UiVars.border-width;
+                                    width: parent.width;
+                                    height: UiVars.border-width;
+                                    background: UiVars.ink;
+                                }
+
+                                Text {
+                                    x: 14px;
+                                    text: (draft.index < 9 ? "0" : "") + (draft.index + 1) + ". " + draft.title;
+                                    color: UiVars.ink;
+                                    font-size: 15px;
+                                    font-weight: 900;
+                                    font-italic: true;
+                                    letter-spacing: 1px;
+                                    vertical-alignment: center;
+                                    height: parent.height;
+                                }
+
+                                ActionButton {
+                                    x: parent.width - 44px;
+                                    y: 8px;
+                                    width: 32px;
+                                    height: 32px;
+                                    label: "DEL";
+                                    fill: transparent;
+                                    outlined: true;
+                                    clicked => { root.remove-draft-exercise(draft.index); }
+                                }
+                            }
+
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 86px + draft.sets_count * 44px;
+
+                                SmallNote { x: 14px; y: 14px; width: 24px; text: "SET"; font-size: 10px; horizontal-alignment: center; }
+                                SmallNote { x: 44px; y: 14px; width: 60px; text: "REPS"; font-size: 10px; horizontal-alignment: center; }
+                                SmallNote { x: 114px; y: 14px; width: 60px; text: "KG"; font-size: 10px; horizontal-alignment: center; }
+                                SmallNote { x: 184px; y: 14px; width: 70px; text: "REST (S)"; font-size: 10px; horizontal-alignment: center; }
+
+                                for set[i] in draft.sets : Rectangle {
+                                    x: 14px;
+                                    y: 34px + i * 44px;
+                                    width: parent.width - 28px;
+                                    height: 36px;
+
+                                    Text {
+                                        x: 0;
+                                        width: 24px;
+                                        height: 36px;
+                                        text: i + 1;
+                                        font-weight: 800;
+                                        vertical-alignment: center;
+                                        horizontal-alignment: center;
+                                    }
+
+                                    Panel {
+                                        x: 30px;
+                                        width: 60px;
+                                        height: 36px;
+                                        stroke: reps_input.has-focus ? UiVars.accent : UiVars.border-strong;
+
+                                        reps_input := TextInput {
+                                            width: parent.width;
+                                            height: parent.height;
+                                            text: set.reps;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                            font-size: 14px;
+                                            font-weight: 800;
+                                            color: UiVars.ink;
+                                            edited => { root.update-set(draft.index, i, self.text, weight_input.text, rest_input.text); }
+                                        }
+                                    }
+
+                                    Panel {
+                                        x: 100px;
+                                        width: 60px;
+                                        height: 36px;
+                                        stroke: weight_input.has-focus ? UiVars.accent : UiVars.border-strong;
+
+                                        weight_input := TextInput {
+                                            width: parent.width;
+                                            height: parent.height;
+                                            text: set.weight;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                            font-size: 14px;
+                                            font-weight: 800;
+                                            color: UiVars.ink;
+                                            edited => { root.update-set(draft.index, i, reps_input.text, self.text, rest_input.text); }
+                                        }
+                                    }
+
+                                    Panel {
+                                        x: 170px;
+                                        width: 70px;
+                                        height: 36px;
+                                        stroke: rest_input.has-focus ? UiVars.accent : UiVars.border-strong;
+
+                                        rest_input := TextInput {
+                                            width: parent.width;
+                                            height: parent.height;
+                                            text: set.rest;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                            font-size: 14px;
+                                            font-weight: 800;
+                                            color: UiVars.ink;
+                                            edited => { root.update-set(draft.index, i, reps_input.text, weight_input.text, self.text); }
+                                        }
+                                    }
+
+                                    Text {
+                                        x: parent.width - 24px;
+                                        width: 24px;
+                                        height: 36px;
+                                        text: "X";
+                                        color: UiVars.ink-soft;
+                                        font-weight: 800;
+                                        font-size: 16px;
+                                        vertical-alignment: center;
+                                        horizontal-alignment: center;
+                                        TouchArea {
+                                            clicked => {
+                                                root.remove-set(draft.index, i);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    x: 14px;
+                                    y: 34px + draft.sets_count * 44px + 4px;
+                                    width: parent.width - 28px;
+                                    height: 38px;
+                                    border-color: UiVars.ink;
+                                    border-width: 2px;
+
+                                    Text {
+                                        text: "+ ADD SET";
+                                        font-weight: 800;
+                                        font-size: 13px;
+                                        letter-spacing: 1px;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                        width: parent.width;
+                                        height: parent.height;
+                                    }
+
+                                    TouchArea {
+                                        clicked => {
+                                            root.add-set(draft.index);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 24px; }
+                }
+
+                ActionButton {
+                    horizontal-stretch: 1;
+                    height: 48px;
+                    label: "+ ADD EXERCISE";
+                    fill: UiVars.surface;
+                    clicked => {
+                        root.search-query = "";
+                        root.filter-muscle = "All Muscles";
+                        root.sort-by = "Most Used";
+                        root.search-query-changed();
+                        root.is-search-open = true;
+                    }
+                }
+
+                if root.status-message != "" : Text {
+                    horizontal-alignment: center;
+                    text: root.status-message;
+                    color: UiVars.ink-soft;
+                    font-size: 12px;
+                }
+
+                Rectangle { height: 120px; }
+            }
+        }
+
+        ActionButton {
+            x: parent.width / 2 - 80px;
+            y: parent.height - 64px;
+            width: 160px;
+            height: 48px;
+            label: "SAVE TEMPLATE";
+            clicked => {
+                root.save-template(
+                    root.template-name,
+                    root.template-icon,
+                    (root.active-days[0] ? "Mon," : "") +
+                    (root.active-days[1] ? "Tue," : "") +
+                    (root.active-days[2] ? "Wed," : "") +
+                    (root.active-days[3] ? "Thu," : "") +
+                    (root.active-days[4] ? "Fri," : "") +
+                    (root.active-days[5] ? "Sat," : "") +
+                    (root.active-days[6] ? "Sun" : "")
+                );
+            }
+        }
+    }
+}

@@ -1,0 +1,3 @@
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\build-android-apk.ps1 -Target x86_64-linux-android -Install
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\build-android-apk.ps1 -Target aarch64-linux-android

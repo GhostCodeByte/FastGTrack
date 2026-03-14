@@ -1,0 +1,110 @@
+export global UiVars {
+    // ===== Core colors =====
+    // Main app background. Used by the window, top safe area, main header, and screen content background.
+    out property <color> background: #efede8;
+
+    // Standard surface color for cards, panels, and the bottom navigation base.
+    out property <color> surface: #efede8;
+
+    // Stronger surface variant for highlighted panels like hero cards and active workout panels.
+    out property <color> surface-strong: #efede8;
+
+    // Soft surface variant for secondary areas like subtle cards and nav tile backgrounds.
+    out property <color> surface-soft: #efede8;
+
+
+    // Main foreground/text color. Used for borders, strong text, divider lines, and active nav content.
+    out property <color> foreground: #111111;
+
+    // Softer foreground for supporting text.
+    out property <color> foreground-soft: #9c968c;
+
+    // Muted foreground for helper text and inactive states.
+    out property <color> foreground-muted: #9c968c;
+
+
+    // Primary accent color. Used for CTAs and active navigation tile highlight.
+    out property <color> accent: #f2cf00;
+
+    // Deeper accent variant for smaller highlight details like arrows and plus signs.
+    out property <color> accent-strong: #f2cf00;
+
+    // Error / PR highlight color.
+    out property <color> danger: #111111;
+
+
+    // Shared subtle border color for low-emphasis outlines.
+    out property <color> border-soft: #9c968c;
+
+    // Shared strong border / divider color.
+    out property <color> border-strong: #111111;
+
+
+    // ===== Layout spacing =====
+    // Global horizontal content padding.
+    out property <length> page-padding: 14px;
+    // Small gap inside sections.
+    out property <length> block-gap: 12px;
+    // Gap directly below section headings like TODAY'S PROTOCOL, WEEKLY PROGRESS, HISTORY, and PLANS.
+    out property <length> section-title-gap: 6px;
+    // Large gap between sections.
+    out property <length> section-gap: 32px;
+
+    // ===== Border / rule sizes =====
+    // Default border width for cards, buttons, and active nav items.
+    out property <length> border-width: 2px;
+    // Decorative thicker rule size where needed.
+    out property <length> rule-width: 3px;
+
+    // ===== Typography =====
+    // Large headline size.
+    out property <length> title-size: 26px;
+    // Section label size.
+    out property <length> heading-size: 11px;
+    // Default body text size.
+    out property <length> body-size: 13px;
+    // Small note / helper text size.
+    out property <length> note-size: 10px;
+
+    // ===== Bottom navigation =====
+    // Total navigation height excluding safe area.
+    out property <length> nav-height: 48px;
+    // Bottom nav container background. Intentionally same as surface for consistency.
+    out property <color> nav-bg: surface;
+    // Inner nav strip background. Intentionally same as background to blend with screen.
+    out property <color> nav-surface: background;
+    // Top divider line above the navigation. Explicit black for a crisp edge.
+    out property <color> nav-divider: #000000;
+
+    // Active nav tile background and text/border colors.
+    out property <color> nav-active-bg: accent;
+    out property <color> nav-active-ink: foreground;
+
+    // Inactive nav tile colors. Reuse shared surface, muted text, and soft border tokens.
+    out property <color> nav-inactive-bg: surface-soft;
+    out property <color> nav-inactive-ink: foreground-muted;
+    out property <color> nav-inactive-stroke: border-soft;
+
+    // Bottom nav sizing and spacing.
+    out property <length> nav-item-size: 28px;
+    out property <length> nav-side-padding: 16px;
+    out property <length> nav-top-padding: 2px;
+    out property <length> nav-item-gap: 14px;
+    out property <length> nav-icon-label-gap: 5px;
+    out property <length> nav-inner-height: 58px;
+    out property <length> nav-surface-height: 60px;
+    out property <length> nav-label-size: 7px;
+    out property <length> nav-label-spacing: 0.8px;
+
+    // ===== Legacy aliases =====
+    // Kept for compatibility with the existing file. These can be migrated away step by step.
+    out property <color> screen-bg: background;
+    out property <color> panel-bg: surface;
+    out property <color> panel-bg-strong: surface-strong;
+    out property <color> panel-bg-soft: surface-soft;
+    out property <color> ink: foreground;
+    out property <color> ink-soft: foreground-soft;
+    out property <color> ink-muted: foreground-muted;
+    out property <color> accent-deep: accent-strong;
+    out property <color> quiet-stroke: border-soft;
+}
