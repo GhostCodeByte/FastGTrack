@@ -787,6 +787,8 @@ fn refresh_home(ui: &MainWindow, state: &AppState) -> Result<()> {
     let recent_sessions = state.db.recent_sessions(5)?;
     let schedule = state.db.schedule()?;
 
+    ui.set_home_has_plans(!templates.is_empty());
+
     let template_rows = templates
         .iter()
         .map(|template| TemplateCard {

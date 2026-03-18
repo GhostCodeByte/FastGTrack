@@ -87,8 +87,9 @@ export component ExerciseScreen inherits Rectangle {
             }
         }
 
-        Rectangle { height: 6px; }
-        SmallNote { text: root.status-message; }
-        Rectangle { height: 14px; }
+        // Only reserve footer space when there is a status message.
+        if root.status-message != "" : Rectangle { height: 6px; }
+        if root.status-message != "" : SmallNote { text: root.status-message; }
+        if root.status-message != "" : Rectangle { height: 14px; }
     }
 }

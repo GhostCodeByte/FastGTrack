@@ -12,6 +12,7 @@ import { ExerciseScreen } from "screens/exercise-screen.slint";
 import { PlannerScreen } from "screens/planner-screen.slint";
 import { WorkoutScreen } from "screens/workout-screen.slint";
 import { StatsScreen } from "screens/stats-screen.slint";
+import { SettingsScreen } from "screens/settings-screen.slint";
 
 import "./fonts/Sora.ttf";
 
@@ -26,7 +27,7 @@ export component MainWindow inherits Window {
     min-width: 360px;
     min-height: 760px;
 
-    /// Controls which main tab is currently rendered (0=Home, 1=Exercises, 2=Planner, 3=Stats).
+    /// Controls which main tab is currently rendered (0=Home, 1=Exercises, 2=Planner (hidden), 3=Stats, 4=Settings).
     in-out property <int> selected-tab: 0;
     /// A toggle flag used by timers to animate components globally across the app.
     in-out property <bool> animation-tick: false;
@@ -78,6 +79,7 @@ export component MainWindow inherits Window {
     in property <string> status-message: "";
     in property <string> home-hero-title: "Built for structured gym tracking";
     in property <string> home-hero-subtitle: "The MVP covers exercise CRUD, reusable workout templates, live session tracking with sets, and personal record detection.";
+    in property <bool> home-has-plans: false;
     in property <string> next-workout-label: "No workout scheduled yet";
     in property <string> streak-label: "Streak: 0 days";
     in property <string> header-greeting: "HELLO, ATHLETE!";
@@ -210,6 +212,7 @@ export component MainWindow inherits Window {
                 templates: root.templates;
                 recent-sessions: root.recent-sessions;
                 week-progress: root.week-progress;
+                has-plans: root.home-has-plans;
 
                 open-planner => {
                     root.template-name = "";
@@ -316,6 +319,11 @@ export component MainWindow inherits Window {
                     root.stats-period-changed();
                 }
             }
+
+            if root.selected-tab == 4 : SettingsScreen {
+                width: parent.width;
+                height: parent.height;
+            }
         }
 
         if root.has-active-workout && !root.is-session-fullscreen : Rectangle {
@@ -415,22 +423,6 @@ export component MainWindow inherits Window {
                 }
 
                 NavItem {
-                    label: "PLANNER";
-                    glyph: "P";
-                    active: root.selected-tab == 2;
-                    tapped => {
-                        if (root.selected-tab != 2) {
-                            root.template-name = "";
-                            root.template-icon = "chest";
-                            root.template-active-days = [false, false, false, false, false, false, false];
-                            root.clear-draft();
-                        }
-                        root.selected-tab = 2;
-                        dummy-focus.focus();
-                    }
-                }
-
-                NavItem {
                     label: "EXERCISES";
                     glyph: "E";
                     active: root.selected-tab == 1;
@@ -442,6 +434,13 @@ export component MainWindow inherits Window {
                     glyph: "S";
                     active: root.selected-tab == 3;
                     tapped => { root.selected-tab = 3; dummy-focus.focus(); }
+                }
+
+                NavItem {
+                    label: "SETTINGS";
+                    glyph: "⚙";
+                    active: root.selected-tab == 4;
+                    tapped => { root.selected-tab = 4; dummy-focus.focus(); }
                 }
                 }
             }
@@ -614,23 +613,6 @@ export component MainWindow inherits Window {
                 }
 
                 NavItem {
-                    label: "PLANNER";
-                    glyph: "P";
-                    active: false;
-                    tapped => {
-                        root.is-session-fullscreen = false;
-                        if (root.selected-tab != 2) {
-                            root.template-name = "";
-                            root.template-icon = "chest";
-                            root.template-active-days = [false, false, false, false, false, false, false];
-                            root.clear-draft();
-                        }
-                        root.selected-tab = 2;
-                        dummy-focus.focus();
-                    }
-                }
-
-                NavItem {
                     label: "EXERCISES";
                     glyph: "E";
                     active: false;
@@ -648,6 +630,17 @@ export component MainWindow inherits Window {
                     tapped => {
                         root.is-session-fullscreen = false;
                         root.selected-tab = 3;
+                        dummy-focus.focus();
+                    }
+                }
+
+                NavItem {
+                    label: "SETTINGS";
+                    glyph: "⚙";
+                    active: false;
+                    tapped => {
+                        root.is-session-fullscreen = false;
+                        root.selected-tab = 4;
                         dummy-focus.focus();
                     }
                 }

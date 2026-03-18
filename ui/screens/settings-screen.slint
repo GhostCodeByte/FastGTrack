@@ -1,0 +1,35 @@
+import { ScrollView, VerticalBox } from "std-widgets.slint";
+import { UiVars } from "../theme.slint";
+import { Panel, SectionLabel, SmallNote } from "../components.slint";
+
+export component SettingsScreen inherits Rectangle {
+    background: UiVars.screen-bg;
+
+    ScrollView {
+        width: parent.width;
+        height: parent.height;
+
+        VerticalBox {
+            alignment: start;
+            padding-left: UiVars.page-padding;
+            padding-right: UiVars.page-padding;
+            spacing: 0;
+
+            SectionLabel { text: "SETTINGS"; }
+            Rectangle { height: UiVars.section-title-gap; }
+
+            Panel {
+                horizontal-stretch: 1;
+                height: 94px;
+
+                SmallNote {
+                    x: 14px;
+                    y: 14px;
+                    width: parent.width - 28px;
+                    text: "Coming soon.";
+                }
+            }
+        }
+    }
+}
+

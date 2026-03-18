@@ -15,6 +15,7 @@ export component HomeScreen inherits Rectangle {
     in property <[TemplateCard]> templates: [];
     in property <[SessionCard]> recent-sessions: [];
     in property <[WeekdayProgress]> week-progress: [];
+    in property <bool> has-plans: false;
 
     callback open-planner();
     callback start-workout(int);
@@ -334,7 +335,15 @@ export component HomeScreen inherits Rectangle {
                 Rectangle { height: 10px; }
             }
 
-            Rectangle { height: 10px; }
+            if root.has-plans : ActionButton {
+                horizontal-stretch: 1;
+                height: 36px;
+                label: "Add new Plan";
+                fill: UiVars.surface;
+                outlined: true;
+                clicked => { root.open-planner(); }
+            }
+
         }
     }
 }

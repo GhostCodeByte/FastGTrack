@@ -109,13 +109,12 @@ export component WorkoutScreen inherits Rectangle {
         width: parent.width;
         height: parent.height - 56px;
 
-        VerticalBox {
-            alignment: start;
-            padding-left: UiVars.page-padding;
-            padding-right: UiVars.page-padding;
-            padding-top: 8px;
-            padding-bottom: 20px;
-            spacing: 6px;
+            VerticalBox {
+                alignment: start;
+                padding-left: UiVars.page-padding;
+                padding-right: UiVars.page-padding;
+                padding-top: 8px;
+                spacing: 6px;
 
             // ── ALL PREVIOUS EXERCISE BOXES ───────────────────────
             // Render one box per exercise that comes BEFORE the current one
@@ -645,7 +644,6 @@ export component WorkoutScreen inherits Rectangle {
                 }
             }
 
-            Rectangle { height: 16px; }
         }
     }
 }
