@@ -1,0 +1,136 @@
+name: Android APK Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch --force --tags
+
+      - name: Determine next release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest_tag="$(git tag -l 'v0.0.*' --sort=-v:refname | head -n 1)"
+
+          if [[ -z "$latest_tag" ]]; then
+            next_patch=1
+          else
+            latest_patch="${latest_tag##*.}"
+            next_patch=$((latest_patch + 1))
+          fi
+
+          next_tag="v0.0.${next_patch}"
+          apk_name="fastgtrack-${next_tag}.apk"
+
+          echo "latest_tag=${latest_tag}" >> "$GITHUB_OUTPUT"
+          echo "next_tag=${next_tag}" >> "$GITHUB_OUTPUT"
+          echo "apk_name=${apk_name}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install cargo-apk
+        run: cargo install cargo-apk --locked
+
+      - name: Set up Android SDK and NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.2.12479018"
+
+      - name: Generate CI release keystore
+        id: keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/android-signing"
+          keystore_path="$RUNNER_TEMP/android-signing/fastgtrack-release.keystore"
+
+          keytool -genkeypair \
+            -alias fastgtrack-release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 3650 \
+            -storetype PKCS12 \
+            -keystore "$keystore_path" \
+            -storepass android \
+            -keypass android \
+            -dname "CN=FastGTrack CI, OU=CI, O=FastGTrack, L=Remote, ST=Remote, C=DE"
+
+          echo "keystore_path=$keystore_path" >> "$GITHUB_OUTPUT"
+
+      - name: Build release APK
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.2.12479018
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+          CARGO_APK_RELEASE_KEYSTORE: ${{ steps.keystore.outputs.keystore_path }}
+          CARGO_APK_RELEASE_KEYSTORE_PASSWORD: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo apk build --lib --target aarch64-linux-android --release
+
+      - name: Locate APK
+        id: apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk_path="$(find target -type f -name '*.apk' | sort | tail -n 1)"
+
+          if [[ -z "$apk_path" ]]; then
+            echo "Keine APK gefunden." >&2
+            exit 1
+          fi
+
+          release_apk="release/${{ steps.version.outputs.apk_name }}"
+          mkdir -p release
+          cp "$apk_path" "$release_apk"
+
+          echo "apk_path=${release_apk}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.next_tag }}
+          name: ${{ steps.version.outputs.next_tag }}
+          generate_release_notes: true
+          files: ${{ steps.apk.outputs.apk_path }}
+          target_commitish: ${{ github.sha }}
