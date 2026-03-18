@@ -75,11 +75,34 @@ jobs:
             "build-tools;36.0.0" \
             "ndk;27.2.12479018"
 
+      - name: Generate CI release keystore
+        id: keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/android-signing"
+          keystore_path="$RUNNER_TEMP/android-signing/fastgtrack-release.keystore"
+
+          keytool -genkeypair \
+            -alias fastgtrack-release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 3650 \
+            -storetype PKCS12 \
+            -keystore "$keystore_path" \
+            -storepass android \
+            -keypass android \
+            -dname "CN=FastGTrack CI, OU=CI, O=FastGTrack, L=Remote, ST=Remote, C=DE"
+
+          echo "keystore_path=$keystore_path" >> "$GITHUB_OUTPUT"
+
       - name: Build release APK
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_NDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.2.12479018
           JAVA_HOME: ${{ env.JAVA_HOME }}
+          CARGO_APK_RELEASE_KEYSTORE: ${{ steps.keystore.outputs.keystore_path }}
+          CARGO_APK_RELEASE_KEYSTORE_PASSWORD: android
         shell: bash
         run: |
           set -euo pipefail
