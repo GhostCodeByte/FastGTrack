@@ -1,8 +1,79 @@
-import { ScrollView, VerticalBox } from "std-widgets.slint";
+import { ScrollView, VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { UiVars } from "../theme.slint";
-import { Panel, SectionLabel, SmallNote } from "../components.slint";
+import { Panel, SectionLabel, SmallNote, ActionButton, BrutalistDropdown } from "../components.slint";
+
+component SettingsField inherits Rectangle {
+    in property <string> label;
+    in-out property <string> value;
+    in property <string> placeholder: "";
+
+    height: 70px;
+    background: transparent;
+
+    SmallNote { x: 0; y: 0; text: root.label; }
+
+    Rectangle {
+        x: 0;
+        y: 20px;
+        width: parent.width;
+        height: 42px;
+        background: input.has-focus ? UiVars.surface-strong : transparent;
+        border-color: input.has-focus ? UiVars.accent : UiVars.ink;
+        border-width: UiVars.border-width;
+
+        input := TextInput {
+            x: 12px;
+            width: parent.width - 24px;
+            height: parent.height;
+            text <=> root.value;
+            color: UiVars.ink;
+            font-size: 13px;
+            font-weight: 800;
+            vertical-alignment: center;
+            single-line: true;
+        }
+
+        if root.value == "" : Text {
+            x: 12px;
+            width: parent.width - 24px;
+            height: parent.height;
+            text: root.placeholder;
+            color: UiVars.ink-muted;
+            font-size: 13px;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+}
 
 export component SettingsScreen inherits Rectangle {
+    in-out property <string> accent-color;
+    in-out property <string> background-color;
+    in-out property <string> text-color;
+    in-out property <string> default-rest;
+    in-out property <string> weight-unit;
+    in-out property <string> set-count;
+    in-out property <string> rep-target;
+    in property <string> storage-path;
+    in property <string> database-path;
+    in property <string> settings-path;
+    in property <string> last-export;
+    in property <string> last-backup;
+    in property <string> app-version;
+    in property <string> schema-version;
+
+    callback save-settings;
+    callback reset-colors;
+    callback reset-defaults;
+    callback export-all-data;
+    callback import-latest-export;
+    callback create-backup;
+    callback restore-latest-backup;
+    callback clear-history;
+    callback clear-templates;
+    callback clear-custom-exercises;
+    callback reset-all-data;
+
     background: UiVars.screen-bg;
 
     ScrollView {
@@ -13,23 +84,173 @@ export component SettingsScreen inherits Rectangle {
             alignment: start;
             padding-left: UiVars.page-padding;
             padding-right: UiVars.page-padding;
-            spacing: 0;
+            padding-bottom: 28px;
+            spacing: 18px;
 
             SectionLabel { text: "SETTINGS"; }
-            Rectangle { height: UiVars.section-title-gap; }
+            SmallNote {
+                horizontal-stretch: 1;
+                text: "Customize colors, defaults, local data management and app info.";
+            }
 
+            SectionLabel { text: "APPEARANCE"; }
+            SmallNote { text: "Set accent, background and text colors with hex values."; horizontal-stretch: 1; }
             Panel {
                 horizontal-stretch: 1;
-                height: 94px;
+                height: 302px;
 
-                SmallNote {
+                HorizontalBox {
                     x: 14px;
                     y: 14px;
                     width: parent.width - 28px;
-                    text: "Coming soon.";
+                    spacing: 10px;
+                    SettingsField { horizontal-stretch: 1; label: "ACCENT COLOR"; value <=> root.accent-color; placeholder: "#F2CF00"; }
+                    SettingsField { horizontal-stretch: 1; label: "BACKGROUND COLOR"; value <=> root.background-color; placeholder: "#EFEDE8"; }
                 }
+
+                SettingsField {
+                    x: 14px;
+                    y: 94px;
+                    width: parent.width - 28px;
+                    label: "TEXT COLOR";
+                    value <=> root.text-color;
+                    placeholder: "#111111";
+                }
+
+                Rectangle {
+                    x: 14px;
+                    y: 174px;
+                    width: parent.width - 28px;
+                    height: 52px;
+                    background: UiVars.accent;
+                    border-color: UiVars.ink;
+                    border-width: UiVars.border-width;
+                    Text {
+                        x: 12px;
+                        y: 8px;
+                        text: "LIVE PREVIEW";
+                        color: UiVars.ink;
+                        font-size: 12px;
+                        font-weight: 900;
+                    }
+                    SmallNote {
+                        x: 12px;
+                        y: 28px;
+                        width: parent.width - 24px;
+                        text: "Saved colors update the full app theme.";
+                        color: UiVars.ink;
+                    }
+                }
+
+                HorizontalBox {
+                    x: 14px;
+                    y: 240px;
+                    width: parent.width - 28px;
+                    spacing: 10px;
+                    ActionButton { horizontal-stretch: 1; label: "SAVE COLORS"; clicked => { root.save-settings(); } }
+                    ActionButton { horizontal-stretch: 1; label: "RESET COLORS"; outlined: true; clicked => { root.reset-colors(); } }
+                }
+            }
+
+            SectionLabel { text: "DEFAULTS"; }
+            SmallNote { text: "These values are used when creating new workout drafts."; horizontal-stretch: 1; }
+            Panel {
+                horizontal-stretch: 1;
+                height: 234px;
+
+                HorizontalBox {
+                    x: 14px;
+                    y: 14px;
+                    width: parent.width - 28px;
+                    spacing: 10px;
+                    SettingsField { horizontal-stretch: 1; label: "REST TIME (SECONDS)"; value <=> root.default-rest; placeholder: "90"; }
+                    SettingsField { horizontal-stretch: 1; label: "SET COUNT"; value <=> root.set-count; placeholder: "3"; }
+                }
+
+                SettingsField {
+                    x: 14px;
+                    y: 94px;
+                    width: (parent.width - 38px) / 2;
+                    label: "REP TARGET";
+                    value <=> root.rep-target;
+                    placeholder: "8";
+                }
+
+                Rectangle {
+                    x: 24px + (parent.width - 38px) / 2;
+                    y: 94px;
+                    width: (parent.width - 38px) / 2;
+                    height: 70px;
+                    background: transparent;
+                    SmallNote { text: "WEIGHT UNIT"; }
+                    BrutalistDropdown {
+                        y: 20px;
+                        horizontal-stretch: 1;
+                        model: ["Kg", "Lbs"];
+                        current-value <=> root.weight-unit;
+                    }
+                }
+
+                HorizontalBox {
+                    x: 14px;
+                    y: 172px;
+                    width: parent.width - 28px;
+                    spacing: 10px;
+                    ActionButton { horizontal-stretch: 1; label: "SAVE DEFAULTS"; clicked => { root.save-settings(); } }
+                    ActionButton { horizontal-stretch: 1; label: "RESET DEFAULTS"; outlined: true; clicked => { root.reset-defaults(); } }
+                }
+            }
+
+            SectionLabel { text: "DATA"; }
+            SmallNote { text: "Export, import, create backups and clear local data."; horizontal-stretch: 1; }
+            Panel {
+                horizontal-stretch: 1;
+                height: 248px;
+                SmallNote { x: 14px; y: 14px; width: parent.width - 28px; text: "LAST EXPORT: " + root.last-export; }
+                SmallNote { x: 14px; y: 34px; width: parent.width - 28px; text: "LAST BACKUP: " + root.last-backup; }
+                HorizontalBox {
+                    x: 14px; y: 62px; width: parent.width - 28px; spacing: 10px;
+                    ActionButton { horizontal-stretch: 1; label: "EXPORT ALL DATA"; clicked => { root.export-all-data(); } }
+                    ActionButton { horizontal-stretch: 1; label: "IMPORT LATEST EXPORT"; outlined: true; clicked => { root.import-latest-export(); } }
+                }
+                HorizontalBox {
+                    x: 14px; y: 110px; width: parent.width - 28px; spacing: 10px;
+                    ActionButton { horizontal-stretch: 1; label: "CREATE BACKUP"; clicked => { root.create-backup(); } }
+                    ActionButton { horizontal-stretch: 1; label: "RESTORE BACKUP"; outlined: true; clicked => { root.restore-latest-backup(); } }
+                }
+                HorizontalBox {
+                    x: 14px; y: 158px; width: parent.width - 28px; spacing: 10px;
+                    ActionButton { horizontal-stretch: 1; label: "DELETE HISTORY"; outlined: true; clicked => { root.clear-history(); } }
+                    ActionButton { horizontal-stretch: 1; label: "DELETE TEMPLATES"; outlined: true; clicked => { root.clear-templates(); } }
+                }
+                HorizontalBox {
+                    x: 14px; y: 206px; width: parent.width - 28px; spacing: 10px;
+                    ActionButton { horizontal-stretch: 1; label: "DELETE CUSTOM EXERCISES"; outlined: true; clicked => { root.clear-custom-exercises(); } }
+                    ActionButton { horizontal-stretch: 1; label: "RESET ALL DATA"; fill: UiVars.danger; text-color: UiVars.surface; clicked => { root.reset-all-data(); } }
+                }
+            }
+
+            SectionLabel { text: "PRIVACY"; }
+            SmallNote { text: "This app is local-first and needs no account."; horizontal-stretch: 1; }
+            Panel {
+                horizontal-stretch: 1;
+                height: 132px;
+                SmallNote { x: 14px; y: 14px; width: parent.width - 28px; text: "All data stays on this device unless you export it manually."; color: UiVars.ink; }
+                SmallNote { x: 14px; y: 34px; width: parent.width - 28px; text: "STORAGE PATH: " + root.storage-path; }
+                SmallNote { x: 14px; y: 54px; width: parent.width - 28px; text: "DATABASE PATH: " + root.database-path; }
+                SmallNote { x: 14px; y: 74px; width: parent.width - 28px; text: "SETTINGS FILE: " + root.settings-path; }
+                SmallNote { x: 14px; y: 94px; width: parent.width - 28px; text: "Stored locally: templates, sessions, PRs, exercises and settings."; }
+            }
+
+            SectionLabel { text: "INFO"; }
+            SmallNote { text: "Build and schema metadata for this local installation."; horizontal-stretch: 1; }
+            Panel {
+                horizontal-stretch: 1;
+                height: 92px;
+                SmallNote { x: 14px; y: 14px; width: parent.width - 28px; text: "APP VERSION: " + root.app-version; color: UiVars.ink; }
+                SmallNote { x: 14px; y: 34px; width: parent.width - 28px; text: "SCHEMA VERSION: " + root.schema-version; }
+                SmallNote { x: 14px; y: 54px; width: parent.width - 28px; text: "OPEN SOURCE APP • NO LOGIN REQUIRED"; }
             }
         }
     }
 }
-
