@@ -1,15 +1,20 @@
 mod db;
 mod models;
+mod settings;
 
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
 use anyhow::{Context, Result};
 use chrono::{Datelike, Local, NaiveDate};
 use db::Database;
 use models::{
-    format_duration, format_relative_day, format_set_actual, format_set_plan, normalize_days,
-    ActiveExercise, ActiveSet, ActiveWorkout, SetType, TemplateDraft, TemplateDraftExercise,
-    WeightType,
+    ActiveExercise, ActiveSet, ActiveWorkout, AppExportBundle, SetType, TemplateDraft,
+    TemplateDraftExercise, WeightType, format_duration, format_relative_day, format_set_actual,
+    format_set_plan, normalize_days,
+};
+use settings::{
+    AppSettings, app_storage_dir, backups_dir, ensure_storage_dirs, exports_dir, latest_json_file,
+    load_settings, normalize_hex_color, save_settings, settings_path, timestamped_file,
 };
 use slint::{ModelRc, SharedString, VecModel};
 
@@ -18,21 +23,29 @@ slint::include_modules!();
 /// Holds the central, active state of the FastGTrack application.
 struct AppState {
     db: Rc<Database>,
+    database_path: PathBuf,
+    settings: AppSettings,
     template_draft: TemplateDraft,
     active_workout: Option<ActiveWorkout>,
     selected_exercise_index: usize,
     status_message: String,
+    last_export_label: String,
+    last_backup_label: String,
 }
 
 impl AppState {
     /// Creates a new, initially empty application state wrapping the given database connection.
-    fn new(db: Rc<Database>) -> Self {
+    fn new(db: Rc<Database>, database_path: PathBuf, settings: AppSettings) -> Self {
         Self {
             db,
+            database_path,
+            settings,
             template_draft: TemplateDraft::default(),
             active_workout: None,
             selected_exercise_index: 0,
             status_message: "".into(),
+            last_export_label: "No export yet".into(),
+            last_backup_label: "No backup yet".into(),
         }
     }
 }
@@ -48,9 +61,16 @@ fn run_with_database_path(database_path: PathBuf) -> Result<()> {
         std::fs::create_dir_all(parent).context("failed to create app data directory")?;
     }
 
+    ensure_storage_dirs()?;
+    let settings = load_settings().context("failed to load app settings")?;
     let db = Rc::new(Database::open(&database_path).context("failed to bootstrap FastGTrack DB")?);
-    let state = Rc::new(RefCell::new(AppState::new(db)));
+    let state = Rc::new(RefCell::new(AppState::new(
+        db,
+        database_path.clone(),
+        settings,
+    )));
     let ui = MainWindow::new().context("failed to construct main window")?;
+    apply_theme(&ui, &state.borrow().settings);
 
     wire_callbacks(&ui, state.clone());
     refresh_ui(&ui, &mut state.borrow_mut())?;
@@ -61,7 +81,7 @@ fn run_with_database_path(database_path: PathBuf) -> Result<()> {
 #[cfg(not(target_os = "android"))]
 /// Returns the default fallback location for the local database on desktop environments.
 fn default_database_path() -> PathBuf {
-    PathBuf::from("fastgtrack.db")
+    app_storage_dir().join("fastgtrack.db")
 }
 
 #[cfg(target_os = "android")]
@@ -88,6 +108,138 @@ fn android_main(app: slint::android::AndroidApp) {
     }
 }
 
+fn apply_theme(ui: &MainWindow, settings: &AppSettings) {
+    let colors = ui.global::<UiVars>();
+    let background = parse_color_or_default(
+        &settings.background_color,
+        slint::Color::from_rgb_u8(0xEF, 0xED, 0xE8),
+    );
+    let accent = parse_color_or_default(
+        &settings.accent_color,
+        slint::Color::from_rgb_u8(0xF2, 0xCF, 0x00),
+    );
+    let text = parse_color_or_default(
+        &settings.text_color,
+        slint::Color::from_rgb_u8(0x11, 0x11, 0x11),
+    );
+    let soft = blend(text, background, 0.45);
+    let muted = blend(text, background, 0.62);
+
+    colors.set_background(background);
+    colors.set_surface(background);
+    colors.set_surface_strong(blend(background, text, 0.06));
+    colors.set_surface_soft(blend(background, text, 0.03));
+    colors.set_foreground(text);
+    colors.set_foreground_soft(soft);
+    colors.set_foreground_muted(muted);
+    colors.set_accent(accent);
+    colors.set_accent_strong(blend(accent, text, 0.18));
+    colors.set_danger(slint::Color::from_rgb_u8(0x8E, 0x24, 0x24));
+    colors.set_border_soft(soft);
+    colors.set_border_strong(text);
+    colors.set_nav_bg(background);
+    colors.set_nav_surface(blend(background, text, 0.02));
+    colors.set_nav_divider(text);
+    colors.set_nav_active_bg(accent);
+    colors.set_nav_active_ink(text);
+    colors.set_nav_inactive_bg(blend(background, text, 0.03));
+    colors.set_nav_inactive_ink(muted);
+    colors.set_nav_inactive_stroke(soft);
+    colors.set_screen_bg(background);
+    colors.set_panel_bg(background);
+    colors.set_panel_bg_strong(blend(background, text, 0.06));
+    colors.set_panel_bg_soft(blend(background, text, 0.03));
+    colors.set_ink(text);
+    colors.set_ink_soft(soft);
+    colors.set_ink_muted(muted);
+    colors.set_accent_deep(blend(accent, text, 0.18));
+    colors.set_quiet_stroke(soft);
+}
+
+fn parse_color_or_default(input: &str, default: slint::Color) -> slint::Color {
+    let normalized = normalize_hex_color(input, "#000000");
+    let hex = normalized.trim_start_matches('#');
+    if hex.len() != 6 {
+        return default;
+    }
+    let r = u8::from_str_radix(&hex[0..2], 16).ok();
+    let g = u8::from_str_radix(&hex[2..4], 16).ok();
+    let b = u8::from_str_radix(&hex[4..6], 16).ok();
+    match (r, g, b) {
+        (Some(r), Some(g), Some(b)) => slint::Color::from_rgb_u8(r, g, b),
+        _ => default,
+    }
+}
+
+fn blend(a: slint::Color, b: slint::Color, amount: f32) -> slint::Color {
+    let mix = |x: u8, y: u8| ((x as f32 * (1.0 - amount)) + (y as f32 * amount)).round() as u8;
+    slint::Color::from_rgb_u8(
+        mix(a.red(), b.red()),
+        mix(a.green(), b.green()),
+        mix(a.blue(), b.blue()),
+    )
+}
+
+fn sync_settings_ui(ui: &MainWindow, state: &AppState) {
+    ui.set_settings_accent_color(state.settings.accent_color.clone().into());
+    ui.set_settings_background_color(state.settings.background_color.clone().into());
+    ui.set_settings_text_color(state.settings.text_color.clone().into());
+    ui.set_settings_default_rest(state.settings.default_rest_seconds.to_string().into());
+    ui.set_settings_weight_unit(state.settings.default_weight_unit.clone().into());
+    ui.set_settings_set_count(state.settings.default_set_count.to_string().into());
+    ui.set_settings_rep_target(state.settings.default_rep_target.to_string().into());
+    ui.set_settings_storage_path(app_storage_dir().display().to_string().into());
+    ui.set_settings_database_path(state.database_path.display().to_string().into());
+    ui.set_settings_settings_path(settings_path().display().to_string().into());
+    ui.set_settings_last_export(state.last_export_label.clone().into());
+    ui.set_settings_last_backup(state.last_backup_label.clone().into());
+    ui.set_settings_app_version(env!("CARGO_PKG_VERSION").into());
+    ui.set_settings_schema_version("1".into());
+}
+
+fn save_current_settings(ui: &MainWindow, state: &mut AppState) -> Result<()> {
+    state.settings.accent_color = normalize_hex_color(
+        &ui.get_settings_accent_color().to_string(),
+        &state.settings.accent_color,
+    );
+    state.settings.background_color = normalize_hex_color(
+        &ui.get_settings_background_color().to_string(),
+        &state.settings.background_color,
+    );
+    state.settings.text_color = normalize_hex_color(
+        &ui.get_settings_text_color().to_string(),
+        &state.settings.text_color,
+    );
+    state.settings.default_rest_seconds = parse_i32(
+        &ui.get_settings_default_rest().to_string(),
+        state.settings.default_rest_seconds,
+    )?;
+    state.settings.default_set_count = parse_i32(
+        &ui.get_settings_set_count().to_string(),
+        state.settings.default_set_count,
+    )?;
+    state.settings.default_rep_target = parse_i32(
+        &ui.get_settings_rep_target().to_string(),
+        state.settings.default_rep_target,
+    )?;
+    state.settings.default_weight_unit = ui.get_settings_weight_unit().to_string();
+    save_settings(&state.settings)?;
+    apply_theme(ui, &state.settings);
+    sync_settings_ui(ui, state);
+    Ok(())
+}
+
+fn write_bundle(path: &PathBuf, bundle: &AppExportBundle) -> Result<()> {
+    let json = serde_json::to_string_pretty(bundle)?;
+    fs::write(path, json)?;
+    Ok(())
+}
+
+fn read_bundle(path: &PathBuf) -> Result<AppExportBundle> {
+    let json = fs::read_to_string(path)?;
+    Ok(serde_json::from_str(&json)?)
+}
+
 /// Connects GUI events triggered from Slint with their corresponding logic updates in `AppState`.
 fn wire_callbacks(ui: &MainWindow, state: Rc<RefCell<AppState>>) {
     // Search: no DB reads, operates purely on the in-memory exercise cache.
@@ -97,6 +249,238 @@ fn wire_callbacks(ui: &MainWindow, state: Rc<RefCell<AppState>>) {
         if let Some(ui) = weak.upgrade() {
             refresh_exercises(&ui, &state_for_search.borrow());
         }
+    });
+
+    let weak = ui.as_weak();
+    let state_for_save_settings = state.clone();
+    ui.on_save_settings(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_save_settings.borrow_mut();
+            if let Some(ui) = weak.upgrade() {
+                save_current_settings(&ui, &mut state)?;
+                state.status_message = "Settings saved.".into();
+            }
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_save_settings, outcome, |ui, state| {
+            sync_settings_ui(ui, state);
+            refresh_home(ui, state).ok();
+            refresh_planner(ui, state);
+            refresh_status(ui, state);
+        });
+    });
+
+    let weak = ui.as_weak();
+    let state_for_reset_colors = state.clone();
+    ui.on_reset_colors(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_reset_colors.borrow_mut();
+            state.settings.accent_color = AppSettings::default().accent_color;
+            state.settings.background_color = AppSettings::default().background_color;
+            state.settings.text_color = AppSettings::default().text_color;
+            save_settings(&state.settings)?;
+            if let Some(ui) = weak.upgrade() {
+                apply_theme(&ui, &state.settings);
+                sync_settings_ui(&ui, &state);
+            }
+            state.status_message = "Colors reset to defaults.".into();
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_reset_colors, outcome, |ui, state| {
+            sync_settings_ui(ui, state);
+            refresh_status(ui, state);
+        });
+    });
+
+    let weak = ui.as_weak();
+    let state_for_reset_defaults = state.clone();
+    ui.on_reset_defaults(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_reset_defaults.borrow_mut();
+            let defaults = AppSettings::default();
+            state.settings.default_rest_seconds = defaults.default_rest_seconds;
+            state.settings.default_weight_unit = defaults.default_weight_unit;
+            state.settings.default_set_count = defaults.default_set_count;
+            state.settings.default_rep_target = defaults.default_rep_target;
+            save_settings(&state.settings)?;
+            if let Some(ui) = weak.upgrade() {
+                sync_settings_ui(&ui, &state);
+            }
+            state.status_message = "Defaults reset.".into();
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_reset_defaults, outcome, |ui, state| {
+            sync_settings_ui(ui, state);
+            refresh_status(ui, state);
+        });
+    });
+
+    let weak = ui.as_weak();
+    let state_for_export = state.clone();
+    ui.on_export_all_data(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_export.borrow_mut();
+            let path = timestamped_file(exports_dir(), "fastgtrack-export");
+            let bundle = state.db.export_bundle(&state.settings)?;
+            write_bundle(&path, &bundle)?;
+            state.last_export_label = path.display().to_string();
+            state.status_message = format!("Exported data to {}", path.display());
+            if let Some(ui) = weak.upgrade() {
+                sync_settings_ui(&ui, &state);
+            }
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_export, outcome, |ui, state| {
+            sync_settings_ui(ui, state);
+            refresh_status(ui, state);
+        });
+    });
+
+    let weak = ui.as_weak();
+    let state_for_import = state.clone();
+    ui.on_import_latest_export(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_import.borrow_mut();
+            let path = latest_json_file(exports_dir()).context("no export file found")?;
+            let bundle = read_bundle(&path)?;
+            state.db.import_bundle(&bundle)?;
+            state.settings = bundle.settings.clone();
+            save_settings(&state.settings)?;
+            if let Some(ui) = weak.upgrade() {
+                apply_theme(&ui, &state.settings);
+                sync_settings_ui(&ui, &state);
+                refresh_ui(&ui, &mut state)?;
+            }
+            state.last_export_label = path.display().to_string();
+            state.status_message = format!("Imported data from {}", path.display());
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_import, outcome, |ui, state| {
+            sync_settings_ui(ui, state);
+            refresh_status(ui, state);
+        });
+    });
+
+    let weak = ui.as_weak();
+    let state_for_backup = state.clone();
+    ui.on_create_backup(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_backup.borrow_mut();
+            let path = timestamped_file(backups_dir(), "fastgtrack-backup");
+            let bundle = state.db.export_bundle(&state.settings)?;
+            write_bundle(&path, &bundle)?;
+            state.last_backup_label = path.display().to_string();
+            state.status_message = format!("Backup created at {}", path.display());
+            if let Some(ui) = weak.upgrade() {
+                sync_settings_ui(&ui, &state);
+            }
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_backup, outcome, |ui, state| {
+            sync_settings_ui(ui, state);
+            refresh_status(ui, state);
+        });
+    });
+
+    let weak = ui.as_weak();
+    let state_for_restore = state.clone();
+    ui.on_restore_latest_backup(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_restore.borrow_mut();
+            let path = latest_json_file(backups_dir()).context("no backup file found")?;
+            let bundle = read_bundle(&path)?;
+            state.db.import_bundle(&bundle)?;
+            state.settings = bundle.settings.clone();
+            save_settings(&state.settings)?;
+            if let Some(ui) = weak.upgrade() {
+                apply_theme(&ui, &state.settings);
+                sync_settings_ui(&ui, &state);
+                refresh_ui(&ui, &mut state)?;
+            }
+            state.last_backup_label = path.display().to_string();
+            state.status_message = format!("Backup restored from {}", path.display());
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_restore, outcome, |ui, state| {
+            sync_settings_ui(ui, state);
+            refresh_status(ui, state);
+        });
+    });
+
+    let weak = ui.as_weak();
+    let state_for_clear_history = state.clone();
+    ui.on_clear_history(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_clear_history.borrow_mut();
+            state.db.clear_history()?;
+            state.status_message = "Workout history deleted.".into();
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_clear_history, outcome, |ui, state| {
+            refresh_home(ui, state).ok();
+            refresh_stats(ui, state);
+            refresh_status(ui, state);
+        });
+    });
+
+    let weak = ui.as_weak();
+    let state_for_clear_templates = state.clone();
+    ui.on_clear_templates(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_clear_templates.borrow_mut();
+            state.db.clear_templates()?;
+            state.template_draft = TemplateDraft::default();
+            state.status_message = "Templates deleted.".into();
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_clear_templates, outcome, |ui, state| {
+            refresh_home(ui, state).ok();
+            refresh_planner(ui, state);
+            refresh_status(ui, state);
+        });
+    });
+
+    let weak = ui.as_weak();
+    let state_for_clear_custom_exercises = state.clone();
+    ui.on_clear_custom_exercises(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_clear_custom_exercises.borrow_mut();
+            state.db.clear_custom_exercises()?;
+            state.status_message = "Custom exercises deleted.".into();
+            Ok(())
+        })();
+        with_partial_refresh(
+            &weak,
+            &state_for_clear_custom_exercises,
+            outcome,
+            |ui, state| {
+                refresh_exercises(ui, state);
+                refresh_status(ui, state);
+            },
+        );
+    });
+
+    let weak = ui.as_weak();
+    let state_for_reset_all = state.clone();
+    ui.on_reset_all_data(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_reset_all.borrow_mut();
+            state.db.clear_all_data()?;
+            state.template_draft = TemplateDraft::default();
+            state.active_workout = None;
+            state.selected_exercise_index = 0;
+            state.status_message = "All local data deleted.".into();
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_reset_all, outcome, |ui, state| {
+            sync_settings_ui(ui, state);
+            refresh_exercises(ui, state);
+            refresh_home(ui, state).ok();
+            refresh_planner(ui, state);
+            refresh_workout(ui, state);
+            refresh_stats(ui, state);
+            refresh_status(ui, state);
+        });
     });
 
     let weak = ui.as_weak();
@@ -114,11 +498,11 @@ fn wire_callbacks(ui: &MainWindow, state: Rc<RefCell<AppState>>) {
                     .find(|e| e.id == exercise_id_i64)
                     .context("exercise not found")?;
 
-                let sets_count = parse_i32(&sets_count, 3)?;
+                let sets_count = parse_i32(&sets_count, state.settings.default_set_count)?;
                 let reps = parse_optional_i32(&reps)?;
                 let duration = parse_optional_i32(&duration)?;
                 let weight = parse_optional_f32(&weight)?;
-                let rest_seconds = parse_i32(&rest, 90)?;
+                let rest_seconds = parse_i32(&rest, state.settings.default_rest_seconds)?;
 
                 let mut sets = Vec::new();
                 for _ in 0..sets_count {
@@ -172,16 +556,18 @@ fn wire_callbacks(ui: &MainWindow, state: Rc<RefCell<AppState>>) {
         let outcome = (|| -> Result<()> {
             let mut state = state_for_add_set.borrow_mut();
             let idx = usize::try_from(index).unwrap_or_default();
+            let default_rep_target = state.settings.default_rep_target;
+            let default_rest_seconds = state.settings.default_rest_seconds;
             if let Some(draft) = state.template_draft.exercises.get_mut(idx) {
                 let last_set = draft
                     .sets
                     .last()
                     .cloned()
                     .unwrap_or(crate::models::DraftSet {
-                        reps: None,
+                        reps: Some(default_rep_target),
                         duration_seconds: None,
                         weight: None,
-                        rest_seconds: 90,
+                        rest_seconds: default_rest_seconds,
                     });
                 draft.sets.push(last_set);
             }
@@ -218,6 +604,7 @@ fn wire_callbacks(ui: &MainWindow, state: Rc<RefCell<AppState>>) {
             let mut state = state_for_update_set.borrow_mut();
             let idx = usize::try_from(index).unwrap_or_default();
             let set_idx = usize::try_from(set_index).unwrap_or_default();
+            let default_rest_seconds = state.settings.default_rest_seconds;
 
             if let Some(draft) = state.template_draft.exercises.get_mut(idx) {
                 if let Some(set) = draft.sets.get_mut(set_idx) {
@@ -227,7 +614,7 @@ fn wire_callbacks(ui: &MainWindow, state: Rc<RefCell<AppState>>) {
                     if let Ok(weight) = parse_optional_f32(&weight) {
                         set.weight = weight;
                     }
-                    if let Ok(rest) = parse_i32(&rest, 90) {
+                    if let Ok(rest) = parse_i32(&rest, default_rest_seconds) {
                         set.rest_seconds = rest;
                     }
                 }
@@ -659,6 +1046,7 @@ fn with_partial_refresh(
 
 /// Ensures that all parts of the user interface are synchronized with the most recent data from the database and internal state.
 fn refresh_ui(ui: &MainWindow, state: &mut AppState) -> Result<()> {
+    sync_settings_ui(ui, state);
     refresh_exercises(ui, state);
     refresh_home(ui, state)?;
     refresh_planner(ui, state);
@@ -672,19 +1060,19 @@ fn refresh_ui(ui: &MainWindow, state: &mut AppState) -> Result<()> {
 // Partial refresh functions — each touches only one slice of the UI.
 // ---------------------------------------------------------------------------
 
-
 /// Loads embedded inline SVGs for rendering icons (lazy load once).
 fn get_svg_strings() -> &'static std::collections::HashMap<i64, (String, String)> {
-    static SVGS: std::sync::OnceLock<std::collections::HashMap<i64, (String, String)>> = std::sync::OnceLock::new();
+    static SVGS: std::sync::OnceLock<std::collections::HashMap<i64, (String, String)>> =
+        std::sync::OnceLock::new();
     SVGS.get_or_init(|| {
         let json = include_str!("../exercises/optimized_exercises.json");
-        
+
         #[derive(serde::Deserialize)]
         struct Ex {
             id: i64,
             svg_images: Option<Vec<String>>,
         }
-        
+
         let exercises: Vec<Ex> = serde_json::from_str(json).unwrap_or_default();
         let mut map = std::collections::HashMap::new();
         for ex in exercises {
@@ -705,13 +1093,13 @@ fn get_cached_images(id: i64) -> Option<(slint::Image, slint::Image)> {
     std::thread_local! {
         static IMAGE_CACHE: std::cell::RefCell<std::collections::HashMap<i64, (slint::Image, slint::Image)>> = std::cell::RefCell::new(std::collections::HashMap::new());
     }
-    
+
     IMAGE_CACHE.with(|cache| {
         let mut map = cache.borrow_mut();
         if let Some(imgs) = map.get(&id) {
             return Some(imgs.clone());
         }
-        
+
         if let Some((r_str, t_str)) = get_svg_strings().get(&id) {
             let r = slint::Image::load_from_svg_data(r_str.as_bytes()).unwrap_or_default();
             let t = slint::Image::load_from_svg_data(t_str.as_bytes()).unwrap_or_default();
@@ -1310,13 +1698,21 @@ fn refresh_stats(ui: &MainWindow, state: &AppState) {
     };
 
     // History
-    let sessions = state.db.stats_sessions_in_period(period_days).unwrap_or_default();
+    let sessions = state
+        .db
+        .stats_sessions_in_period(period_days)
+        .unwrap_or_default();
     let history_rows: Vec<SessionCard> = sessions
         .iter()
         .take(10)
         .map(|s| SessionCard {
             icon: s.icon.clone().into(),
-            title: format!("{} {}", s.template_name, format_duration(s.duration_seconds)).into(),
+            title: format!(
+                "{} {}",
+                s.template_name,
+                format_duration(s.duration_seconds)
+            )
+            .into(),
             subtitle: format_relative_day(&s.finished_at).to_uppercase().into(),
             metric: format!("{:.0} KG VOL", s.total_volume).into(),
         })
