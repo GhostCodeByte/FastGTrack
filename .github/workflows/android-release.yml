@@ -14,6 +14,12 @@ concurrency:
   group: android-release-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+  ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+  ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+  ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -75,7 +81,25 @@ jobs:
             "build-tools;36.0.0" \
             "ndk;27.2.12479018"
 
-      - name: Generate CI release keystore
+      - name: Validate Android signing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Fehlendes GitHub Secret: $name" >&2
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            echo "Lege einen persistenten Release-Keystore in den Repository-Secrets ab, damit APK-Updates installierbar bleiben." >&2
+            exit 1
+          fi
+
+      - name: Restore persistent release keystore
         id: keystore
         shell: bash
         run: |
@@ -83,16 +107,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/android-signing"
           keystore_path="$RUNNER_TEMP/android-signing/fastgtrack-release.keystore"
 
-          keytool -genkeypair \
-            -alias fastgtrack-release \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 3650 \
-            -storetype PKCS12 \
-            -keystore "$keystore_path" \
-            -storepass android \
-            -keypass android \
-            -dname "CN=FastGTrack CI, OU=CI, O=FastGTrack, L=Remote, ST=Remote, C=DE"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+
+          if [[ ! -s "$keystore_path" ]]; then
+            echo "Der Release-Keystore konnte nicht aus ANDROID_KEYSTORE_BASE64 wiederhergestellt werden." >&2
+            exit 1
+          fi
 
           echo "keystore_path=$keystore_path" >> "$GITHUB_OUTPUT"
 
@@ -102,7 +122,9 @@ jobs:
           ANDROID_NDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.2.12479018
           JAVA_HOME: ${{ env.JAVA_HOME }}
           CARGO_APK_RELEASE_KEYSTORE: ${{ steps.keystore.outputs.keystore_path }}
-          CARGO_APK_RELEASE_KEYSTORE_PASSWORD: android
+          CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ env.ANDROID_KEYSTORE_PASSWORD }}
+          CARGO_APK_RELEASE_KEY_ALIAS: ${{ env.ANDROID_KEY_ALIAS }}
+          CARGO_APK_RELEASE_KEY_PASSWORD: ${{ env.ANDROID_KEY_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
