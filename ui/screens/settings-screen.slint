@@ -123,6 +123,12 @@ export component SettingsScreen inherits Rectangle {
     callback clear-custom-exercises;
     callback reset-all-data;
 
+    property <bool> appearance-expanded: true;
+    property <bool> defaults-expanded: true;
+    property <bool> data-expanded: false;
+    property <bool> privacy-expanded: false;
+    property <bool> info-expanded: false;
+
     background: UiVars.screen-bg;
 
     ScrollView {
@@ -131,438 +137,347 @@ export component SettingsScreen inherits Rectangle {
 
         VerticalBox {
             alignment: start;
-            padding-left: UiVars.page-padding;
-            padding-right: UiVars.page-padding;
+            padding-top: UiVars.page-padding;
+            padding-left: root.width > 720px ? (root.width - 640px) / 2 : UiVars.page-padding;
+            padding-right: root.width > 720px ? (root.width - 640px) / 2 : UiVars.page-padding;
             padding-bottom: 28px;
-            spacing: 0;
+            spacing: 14px;
 
             SectionLabel { text: "SETTINGS"; }
-            Rectangle { height: UiVars.section-title-gap; }
-            SmallNote {
-                horizontal-stretch: 1;
-                text: "Customize colors, defaults, local data management and app info.";
-            }
-
-            Rectangle { height: UiVars.section-gap; }
-
-            SectionLabel { text: "APPEARANCE"; }
-            Rectangle { height: UiVars.section-title-gap; }
-            SmallNote {
-                horizontal-stretch: 1;
-                text: "Set accent, background and text colors with hex values.";
-            }
-            Rectangle { height: UiVars.block-gap; }
 
             Panel {
                 horizontal-stretch: 1;
-                height: 292px;
+                height: root.appearance-expanded ? 320px : 58px;
 
-                VerticalBox {
-                    width: parent.width;
-                    height: parent.height;
-                    padding: UiVars.page-padding;
-                    spacing: UiVars.block-gap;
+                Rectangle {
+                    x: UiVars.page-padding;
+                    y: UiVars.page-padding;
+                    width: parent.width - (UiVars.page-padding * 2);
+                    height: 30px;
+                    background: transparent;
 
-                    Rectangle {
-                        height: 68px;
-                        horizontal-stretch: 1;
-
-                        HorizontalBox {
-                            width: parent.width;
-                            height: parent.height;
-                            padding: 0;
-                            spacing: 10px;
-
-                            SettingsField {
-                                horizontal-stretch: 1;
-                                label: "ACCENT COLOR";
-                                value <=> root.accent-color;
-                                placeholder: "#F2CF00";
-                            }
-
-                            SettingsField {
-                                horizontal-stretch: 1;
-                                label: "BACKGROUND COLOR";
-                                value <=> root.background-color;
-                                placeholder: "#EFEDE8";
-                            }
-                        }
+                    Text {
+                        width: parent.width - 34px;
+                        height: parent.height;
+                        text: "APPEARANCE";
+                        color: UiVars.ink;
+                        font-size: 12px;
+                        font-weight: 900;
+                        letter-spacing: 2px;
+                        vertical-alignment: center;
                     }
 
-                    SettingsField {
-                        horizontal-stretch: 1;
-                        label: "TEXT COLOR";
-                        value <=> root.text-color;
-                        placeholder: "#111111";
+                    Text {
+                        x: parent.width - 24px;
+                        width: 24px;
+                        height: parent.height;
+                        text: root.appearance-expanded ? "−" : "+";
+                        color: UiVars.ink;
+                        font-size: 18px;
+                        font-weight: 900;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
                     }
 
-                    Panel {
-                        horizontal-stretch: 1;
-                        height: 56px;
-                        fill: UiVars.accent;
+                    TouchArea { clicked => { root.appearance-expanded = !root.appearance-expanded; } }
+                }
 
-                        Text {
-                            x: 12px;
-                            y: 8px;
-                            text: "LIVE PREVIEW";
-                            color: UiVars.ink;
-                            font-size: 12px;
-                            font-weight: 900;
-                            letter-spacing: 1px;
-                        }
+                if root.appearance-expanded : Rectangle {
+                    x: UiVars.page-padding;
+                    y: 52px;
+                    width: parent.width - (UiVars.page-padding * 2);
+                    height: parent.height - 66px;
+                    background: transparent;
 
-                        SmallNote {
-                            x: 12px;
-                            y: 28px;
-                            width: parent.width - 24px;
-                            text: "Saved colors update the full app theme.";
-                            color: UiVars.ink;
-                        }
-                    }
+                    VerticalBox {
+                        width: parent.width;
+                        height: parent.height;
+                        padding: 0;
+                        spacing: 12px;
 
-                    Rectangle {
-                        height: 36px;
-                        horizontal-stretch: 1;
+                        Rectangle { height: 1px; background: UiVars.border-soft; }
+                        SettingsField { horizontal-stretch: 1; label: "ACCENT COLOR"; value <=> root.accent-color; placeholder: "#F2CF00"; }
+                        SettingsField { horizontal-stretch: 1; label: "BACKGROUND COLOR"; value <=> root.background-color; placeholder: "#EFEDE8"; }
+                        SettingsField { horizontal-stretch: 1; label: "TEXT COLOR"; value <=> root.text-color; placeholder: "#111111"; }
 
-                        HorizontalBox {
-                            width: parent.width;
-                            height: parent.height;
-                            padding: 0;
-                            spacing: 10px;
+                        Rectangle {
+                            height: 36px;
+                            HorizontalBox {
+                                width: parent.width;
+                                height: parent.height;
+                                padding: 0;
+                                spacing: 10px;
 
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "SAVE COLORS";
-                                clicked => { root.save-settings(); }
-                            }
-
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "RESET COLORS";
-                                outlined: true;
-                                clicked => { root.reset-colors(); }
+                                ActionButton { horizontal-stretch: 1; label: "SAVE COLORS"; clicked => { root.save-settings(); } }
+                                ActionButton { horizontal-stretch: 1; label: "RESET COLORS"; outlined: true; clicked => { root.reset-colors(); } }
                             }
                         }
                     }
                 }
             }
 
-            Rectangle { height: UiVars.section-gap; }
-
-            SectionLabel { text: "DEFAULTS"; }
-            Rectangle { height: UiVars.section-title-gap; }
-            SmallNote {
-                horizontal-stretch: 1;
-                text: "These values are used when creating new workout drafts.";
-            }
-            Rectangle { height: UiVars.block-gap; }
-
             Panel {
                 horizontal-stretch: 1;
-                height: 224px;
+                height: root.defaults-expanded ? 402px : 58px;
 
-                VerticalBox {
-                    width: parent.width;
-                    height: parent.height;
-                    padding: UiVars.page-padding;
-                    spacing: UiVars.block-gap;
+                Rectangle {
+                    x: UiVars.page-padding;
+                    y: UiVars.page-padding;
+                    width: parent.width - (UiVars.page-padding * 2);
+                    height: 30px;
+                    background: transparent;
 
-                    Rectangle {
-                        height: 68px;
-                        horizontal-stretch: 1;
-
-                        HorizontalBox {
-                            width: parent.width;
-                            height: parent.height;
-                            padding: 0;
-                            spacing: 10px;
-
-                            SettingsField {
-                                horizontal-stretch: 1;
-                                label: "REST TIME (SECONDS)";
-                                value <=> root.default-rest;
-                                placeholder: "90";
-                            }
-
-                            SettingsField {
-                                horizontal-stretch: 1;
-                                label: "SET COUNT";
-                                value <=> root.set-count;
-                                placeholder: "3";
-                            }
-                        }
+                    Text {
+                        width: parent.width - 34px;
+                        height: parent.height;
+                        text: "DEFAULTS";
+                        color: UiVars.ink;
+                        font-size: 12px;
+                        font-weight: 900;
+                        letter-spacing: 2px;
+                        vertical-alignment: center;
                     }
 
-                    Rectangle {
-                        height: 68px;
-                        horizontal-stretch: 1;
-
-                        HorizontalBox {
-                            width: parent.width;
-                            height: parent.height;
-                            padding: 0;
-                            spacing: 10px;
-
-                            SettingsField {
-                                horizontal-stretch: 1;
-                                label: "REP TARGET";
-                                value <=> root.rep-target;
-                                placeholder: "8";
-                            }
-
-                            SettingsDropdownField {
-                                horizontal-stretch: 1;
-                                label: "WEIGHT UNIT";
-                                model: ["Kg", "Lbs"];
-                                value <=> root.weight-unit;
-                            }
-                        }
+                    Text {
+                        x: parent.width - 24px;
+                        width: 24px;
+                        height: parent.height;
+                        text: root.defaults-expanded ? "−" : "+";
+                        color: UiVars.ink;
+                        font-size: 18px;
+                        font-weight: 900;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
                     }
 
-                    Rectangle {
-                        height: 36px;
-                        horizontal-stretch: 1;
+                    TouchArea { clicked => { root.defaults-expanded = !root.defaults-expanded; } }
+                }
 
-                        HorizontalBox {
-                            width: parent.width;
-                            height: parent.height;
-                            padding: 0;
-                            spacing: 10px;
+                if root.defaults-expanded : Rectangle {
+                    x: UiVars.page-padding;
+                    y: 52px;
+                    width: parent.width - (UiVars.page-padding * 2);
+                    height: parent.height - 66px;
+                    background: transparent;
 
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "SAVE DEFAULTS";
-                                clicked => { root.save-settings(); }
-                            }
+                    VerticalBox {
+                        width: parent.width;
+                        height: parent.height;
+                        padding: 0;
+                        spacing: 12px;
 
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "RESET DEFAULTS";
-                                outlined: true;
-                                clicked => { root.reset-defaults(); }
+                        Rectangle { height: 1px; background: UiVars.border-soft; }
+                        SettingsField { horizontal-stretch: 1; label: "REST TIME (SECONDS)"; value <=> root.default-rest; placeholder: "90"; }
+                        SettingsField { horizontal-stretch: 1; label: "SET COUNT"; value <=> root.set-count; placeholder: "3"; }
+                        SettingsField { horizontal-stretch: 1; label: "REP TARGET"; value <=> root.rep-target; placeholder: "8"; }
+                        SettingsDropdownField { horizontal-stretch: 1; label: "WEIGHT UNIT"; model: ["Kg", "Lbs"]; value <=> root.weight-unit; }
+
+                        Rectangle {
+                            height: 36px;
+                            HorizontalBox {
+                                width: parent.width;
+                                height: parent.height;
+                                padding: 0;
+                                spacing: 10px;
+
+                                ActionButton { horizontal-stretch: 1; label: "SAVE DEFAULTS"; clicked => { root.save-settings(); } }
+                                ActionButton { horizontal-stretch: 1; label: "RESET DEFAULTS"; outlined: true; clicked => { root.reset-defaults(); } }
                             }
                         }
                     }
                 }
             }
 
-            Rectangle { height: UiVars.section-gap; }
-
-            SectionLabel { text: "DATA"; }
-            Rectangle { height: UiVars.section-title-gap; }
-            SmallNote {
-                horizontal-stretch: 1;
-                text: "Export, import, create backups and clear local data.";
-            }
-            Rectangle { height: UiVars.block-gap; }
-
             Panel {
                 horizontal-stretch: 1;
-                height: 268px;
+                height: root.data-expanded ? 440px : 58px;
 
-                VerticalBox {
-                    width: parent.width;
-                    height: parent.height;
-                    padding: UiVars.page-padding;
-                    spacing: UiVars.block-gap;
+                Rectangle {
+                    x: UiVars.page-padding;
+                    y: UiVars.page-padding;
+                    width: parent.width - (UiVars.page-padding * 2);
+                    height: 30px;
+                    background: transparent;
 
-                    SettingsInfoRow {
-                        horizontal-stretch: 1;
-                        text: "LAST EXPORT: " + root.last-export;
+                    Text {
+                        width: parent.width - 34px;
+                        height: parent.height;
+                        text: "DATA";
+                        color: UiVars.ink;
+                        font-size: 12px;
+                        font-weight: 900;
+                        letter-spacing: 2px;
+                        vertical-alignment: center;
                     }
 
-                    SettingsInfoRow {
-                        horizontal-stretch: 1;
-                        text: "LAST BACKUP: " + root.last-backup;
+                    Text {
+                        x: parent.width - 24px;
+                        width: 24px;
+                        height: parent.height;
+                        text: root.data-expanded ? "−" : "+";
+                        color: UiVars.ink;
+                        font-size: 18px;
+                        font-weight: 900;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
                     }
 
-                    Rectangle {
-                        height: 36px;
-                        horizontal-stretch: 1;
+                    TouchArea { clicked => { root.data-expanded = !root.data-expanded; } }
+                }
 
-                        HorizontalBox {
-                            width: parent.width;
-                            height: parent.height;
-                            padding: 0;
-                            spacing: 10px;
+                if root.data-expanded : Rectangle {
+                    x: UiVars.page-padding;
+                    y: 52px;
+                    width: parent.width - (UiVars.page-padding * 2);
+                    height: parent.height - 66px;
+                    background: transparent;
 
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "EXPORT ALL DATA";
-                                clicked => { root.export-all-data(); }
-                            }
+                    VerticalBox {
+                        width: parent.width;
+                        height: parent.height;
+                        padding: 0;
+                        spacing: 10px;
 
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "IMPORT LATEST EXPORT";
-                                outlined: true;
-                                clicked => { root.import-latest-export(); }
+                        Rectangle { height: 1px; background: UiVars.border-soft; }
+                        SettingsInfoRow { horizontal-stretch: 1; text: "LAST EXPORT: " + root.last-export; }
+                        SettingsInfoRow { horizontal-stretch: 1; text: "LAST BACKUP: " + root.last-backup; }
+                        ActionButton { horizontal-stretch: 1; height: 36px; label: "EXPORT ALL DATA"; clicked => { root.export-all-data(); } }
+                        ActionButton { horizontal-stretch: 1; height: 36px; label: "IMPORT LATEST EXPORT"; outlined: true; clicked => { root.import-latest-export(); } }
+                        ActionButton { horizontal-stretch: 1; height: 36px; label: "CREATE BACKUP"; clicked => { root.create-backup(); } }
+                        ActionButton { horizontal-stretch: 1; height: 36px; label: "RESTORE BACKUP"; outlined: true; clicked => { root.restore-latest-backup(); } }
+
+                        Rectangle {
+                            height: 36px;
+                            HorizontalBox {
+                                width: parent.width;
+                                height: parent.height;
+                                padding: 0;
+                                spacing: 10px;
+
+                                ActionButton { horizontal-stretch: 1; label: "DELETE HISTORY"; outlined: true; clicked => { root.clear-history(); } }
+                                ActionButton { horizontal-stretch: 1; label: "DELETE TEMPLATES"; outlined: true; clicked => { root.clear-templates(); } }
                             }
                         }
-                    }
 
-                    Rectangle {
-                        height: 36px;
-                        horizontal-stretch: 1;
-
-                        HorizontalBox {
-                            width: parent.width;
-                            height: parent.height;
-                            padding: 0;
-                            spacing: 10px;
-
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "CREATE BACKUP";
-                                clicked => { root.create-backup(); }
-                            }
-
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "RESTORE BACKUP";
-                                outlined: true;
-                                clicked => { root.restore-latest-backup(); }
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        height: 36px;
-                        horizontal-stretch: 1;
-
-                        HorizontalBox {
-                            width: parent.width;
-                            height: parent.height;
-                            padding: 0;
-                            spacing: 10px;
-
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "DELETE HISTORY";
-                                outlined: true;
-                                clicked => { root.clear-history(); }
-                            }
-
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "DELETE TEMPLATES";
-                                outlined: true;
-                                clicked => { root.clear-templates(); }
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        height: 36px;
-                        horizontal-stretch: 1;
-
-                        HorizontalBox {
-                            width: parent.width;
-                            height: parent.height;
-                            padding: 0;
-                            spacing: 10px;
-
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "DELETE CUSTOM EXERCISES";
-                                outlined: true;
-                                clicked => { root.clear-custom-exercises(); }
-                            }
-
-                            ActionButton {
-                                horizontal-stretch: 1;
-                                label: "RESET ALL DATA";
-                                fill: UiVars.danger;
-                                text-color: UiVars.surface;
-                                clicked => { root.reset-all-data(); }
-                            }
-                        }
+                        ActionButton { horizontal-stretch: 1; height: 36px; label: "DELETE CUSTOM EXERCISES"; outlined: true; clicked => { root.clear-custom-exercises(); } }
+                        ActionButton { horizontal-stretch: 1; height: 36px; label: "RESET ALL DATA"; fill: UiVars.danger; text-color: UiVars.surface; clicked => { root.reset-all-data(); } }
                     }
                 }
             }
 
-            Rectangle { height: UiVars.section-gap; }
-
-            SectionLabel { text: "PRIVACY"; }
-            Rectangle { height: UiVars.section-title-gap; }
-            SmallNote {
-                horizontal-stretch: 1;
-                text: "This app is local-first and needs no account.";
-            }
-            Rectangle { height: UiVars.block-gap; }
-
             Panel {
                 horizontal-stretch: 1;
-                height: 150px;
+                height: root.privacy-expanded ? 166px : 58px;
 
-                VerticalBox {
-                    width: parent.width;
-                    height: parent.height;
-                    padding: UiVars.page-padding;
-                    spacing: 8px;
+                Rectangle {
+                    x: UiVars.page-padding;
+                    y: UiVars.page-padding;
+                    width: parent.width - (UiVars.page-padding * 2);
+                    height: 30px;
+                    background: transparent;
 
-                    SettingsInfoRow {
-                        horizontal-stretch: 1;
-                        text: "ALL DATA STAYS ON THIS DEVICE UNLESS YOU EXPORT IT MANUALLY.";
-                        tone: UiVars.ink;
+                    Text {
+                        width: parent.width - 34px;
+                        height: parent.height;
+                        text: "PRIVACY";
+                        color: UiVars.ink;
+                        font-size: 12px;
+                        font-weight: 900;
+                        letter-spacing: 2px;
+                        vertical-alignment: center;
                     }
 
-                    SettingsInfoRow {
-                        horizontal-stretch: 1;
-                        text: "STORAGE PATH: " + root.storage-path;
+                    Text {
+                        x: parent.width - 24px;
+                        width: 24px;
+                        height: parent.height;
+                        text: root.privacy-expanded ? "−" : "+";
+                        color: UiVars.ink;
+                        font-size: 18px;
+                        font-weight: 900;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
                     }
 
-                    SettingsInfoRow {
-                        horizontal-stretch: 1;
-                        text: "DATABASE PATH: " + root.database-path;
-                    }
+                    TouchArea { clicked => { root.privacy-expanded = !root.privacy-expanded; } }
+                }
 
-                    SettingsInfoRow {
-                        horizontal-stretch: 1;
-                        text: "SETTINGS FILE: " + root.settings-path;
-                    }
+                if root.privacy-expanded : Rectangle {
+                    x: UiVars.page-padding;
+                    y: 52px;
+                    width: parent.width - (UiVars.page-padding * 2);
+                    height: parent.height - 66px;
+                    background: transparent;
 
-                    SettingsInfoRow {
-                        horizontal-stretch: 1;
-                        text: "STORED LOCALLY: TEMPLATES, SESSIONS, PRS, EXERCISES AND SETTINGS.";
+                    VerticalBox {
+                        width: parent.width;
+                        height: parent.height;
+                        padding: 0;
+                        spacing: 8px;
+
+                        Rectangle { height: 1px; background: UiVars.border-soft; }
+                        SettingsInfoRow { horizontal-stretch: 1; text: "ALL DATA STAYS ON THIS DEVICE UNLESS YOU EXPORT IT MANUALLY."; tone: UiVars.ink; }
+                        SettingsInfoRow { horizontal-stretch: 1; text: "STORAGE PATH: " + root.storage-path; }
+                        SettingsInfoRow { horizontal-stretch: 1; text: "DATABASE PATH: " + root.database-path; }
+                        SettingsInfoRow { horizontal-stretch: 1; text: "SETTINGS FILE: " + root.settings-path; }
                     }
                 }
             }
 
-            Rectangle { height: UiVars.section-gap; }
-
-            SectionLabel { text: "INFO"; }
-            Rectangle { height: UiVars.section-title-gap; }
-            SmallNote {
-                horizontal-stretch: 1;
-                text: "Build and schema metadata for this local installation.";
-            }
-            Rectangle { height: UiVars.block-gap; }
-
             Panel {
                 horizontal-stretch: 1;
-                height: 104px;
+                height: root.info-expanded ? 128px : 58px;
 
-                VerticalBox {
-                    width: parent.width;
-                    height: parent.height;
-                    padding: UiVars.page-padding;
-                    spacing: 8px;
+                Rectangle {
+                    x: UiVars.page-padding;
+                    y: UiVars.page-padding;
+                    width: parent.width - (UiVars.page-padding * 2);
+                    height: 30px;
+                    background: transparent;
 
-                    SettingsInfoRow {
-                        horizontal-stretch: 1;
-                        text: "APP VERSION: " + root.app-version;
-                        tone: UiVars.ink;
+                    Text {
+                        width: parent.width - 34px;
+                        height: parent.height;
+                        text: "INFO";
+                        color: UiVars.ink;
+                        font-size: 12px;
+                        font-weight: 900;
+                        letter-spacing: 2px;
+                        vertical-alignment: center;
                     }
 
-                    SettingsInfoRow {
-                        horizontal-stretch: 1;
-                        text: "SCHEMA VERSION: " + root.schema-version;
+                    Text {
+                        x: parent.width - 24px;
+                        width: 24px;
+                        height: parent.height;
+                        text: root.info-expanded ? "−" : "+";
+                        color: UiVars.ink;
+                        font-size: 18px;
+                        font-weight: 900;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
                     }
 
-                    SettingsInfoRow {
-                        horizontal-stretch: 1;
-                        text: "OPEN SOURCE APP | NO LOGIN REQUIRED";
+                    TouchArea { clicked => { root.info-expanded = !root.info-expanded; } }
+                }
+
+                if root.info-expanded : Rectangle {
+                    x: UiVars.page-padding;
+                    y: 52px;
+                    width: parent.width - (UiVars.page-padding * 2);
+                    height: parent.height - 66px;
+                    background: transparent;
+
+                    VerticalBox {
+                        width: parent.width;
+                        height: parent.height;
+                        padding: 0;
+                        spacing: 8px;
+
+                        Rectangle { height: 1px; background: UiVars.border-soft; }
+                        SettingsInfoRow { horizontal-stretch: 1; text: "APP VERSION: " + root.app-version; tone: UiVars.ink; }
+                        SettingsInfoRow { horizontal-stretch: 1; text: "SCHEMA VERSION: " + root.schema-version; }
+                        SettingsInfoRow { horizontal-stretch: 1; text: "OPEN SOURCE APP | NO LOGIN REQUIRED"; }
                     }
                 }
             }
