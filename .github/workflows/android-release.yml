@@ -23,6 +23,11 @@ env:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_API_LEVEL: '36'
+      ANDROID_BUILD_TOOLS: '36.0.0'
+      ANDROID_NDK_VERSION: '27.2.12479018'
 
     steps:
       - name: Checkout repository
@@ -65,21 +70,58 @@ jobs:
         with:
           targets: aarch64-linux-android
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          key: android-release-aarch64
+
+      - name: Cache cargo-apk
+        id: cargo-apk-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/cargo-apk
+            ~/.cargo/.crates2.json
+            ~/.cargo/.crates.toml
+          key: ${{ runner.os }}-cargo-apk-v0.10.0
+
       - name: Install cargo-apk
-        run: cargo install cargo-apk --locked
+        if: steps.cargo-apk-cache.outputs.cache-hit != 'true'
+        run: cargo install cargo-apk --locked --version 0.10.0
 
       - name: Set up Android SDK and NDK
         uses: android-actions/setup-android@v3
+
+      - name: Cache Android SDK packages
+        id: android-sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ANDROID_SDK_ROOT }}/platform-tools
+            ${{ env.ANDROID_SDK_ROOT }}/platforms/android-${{ env.ANDROID_API_LEVEL }}
+            ${{ env.ANDROID_SDK_ROOT }}/build-tools/${{ env.ANDROID_BUILD_TOOLS }}
+            ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.ANDROID_NDK_VERSION }}
+            ${{ env.ANDROID_SDK_ROOT }}/licenses
+          key: ${{ runner.os }}-android-sdk-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_BUILD_TOOLS }}-${{ env.ANDROID_NDK_VERSION }}
 
       - name: Install Android packages
         shell: bash
         run: |
           set -euo pipefail
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
-            "ndk;27.2.12479018"
+
+          packages_to_install=()
+
+          [[ -d "${ANDROID_SDK_ROOT}/platform-tools" ]] || packages_to_install+=("platform-tools")
+          [[ -d "${ANDROID_SDK_ROOT}/platforms/android-${ANDROID_API_LEVEL}" ]] || packages_to_install+=("platforms;android-${ANDROID_API_LEVEL}")
+          [[ -d "${ANDROID_SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS}" ]] || packages_to_install+=("build-tools;${ANDROID_BUILD_TOOLS}")
+          [[ -d "${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}" ]] || packages_to_install+=("ndk;${ANDROID_NDK_VERSION}")
+
+          if [[ "${#packages_to_install[@]}" -gt 0 ]]; then
+            sdkmanager --install "${packages_to_install[@]}"
+          else
+            echo "Android SDK packages already restored from cache."
+          fi
 
       - name: Validate Android signing secrets
         shell: bash
@@ -119,7 +161,7 @@ jobs:
       - name: Build release APK
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-          ANDROID_NDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.2.12479018
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.ANDROID_NDK_VERSION }}
           JAVA_HOME: ${{ env.JAVA_HOME }}
           CARGO_APK_RELEASE_KEYSTORE: ${{ steps.keystore.outputs.keystore_path }}
           CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ env.ANDROID_KEYSTORE_PASSWORD }}
