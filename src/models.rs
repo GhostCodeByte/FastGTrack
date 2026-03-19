@@ -322,6 +322,105 @@ pub struct PersonalRecord {
     pub value: f32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppExportBundle {
+    pub schema_version: i32,
+    pub app_version: String,
+    pub exported_at: String,
+    pub settings: crate::settings::AppSettings,
+    pub exercises: Vec<ExerciseRecord>,
+    pub workout_templates: Vec<WorkoutTemplateRecord>,
+    pub template_exercises: Vec<TemplateExerciseRecord>,
+    pub planned_sets: Vec<PlannedSetRecord>,
+    pub workout_sessions: Vec<WorkoutSessionRecord>,
+    pub session_sets: Vec<SessionSetRecord>,
+    pub personal_records: Vec<PersonalRecordRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExerciseRecord {
+    pub id: i64,
+    pub name: String,
+    pub muscle_group: String,
+    pub equipment: String,
+    pub description: String,
+    pub image_path: Option<String>,
+    pub is_timed: i32,
+    pub is_bodyweight: i32,
+    pub source: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkoutTemplateRecord {
+    pub id: i64,
+    pub name: String,
+    pub icon: String,
+    pub assigned_days: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateExerciseRecord {
+    pub id: i64,
+    pub template_id: i64,
+    pub exercise_id: i64,
+    pub order_index: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlannedSetRecord {
+    pub id: i64,
+    pub template_exercise_id: i64,
+    pub set_number: i32,
+    pub set_type: String,
+    pub reps: Option<i32>,
+    pub duration_seconds: Option<i32>,
+    pub weight: Option<f32>,
+    pub weight_type: String,
+    pub rest_seconds: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkoutSessionRecord {
+    pub id: i64,
+    pub template_id: Option<i64>,
+    pub template_name: String,
+    pub icon: String,
+    pub started_at: String,
+    pub finished_at: String,
+    pub duration_seconds: i32,
+    pub total_volume: f32,
+    pub pr_count: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionSetRecord {
+    pub id: i64,
+    pub session_id: i64,
+    pub exercise_id: i64,
+    pub exercise_name: String,
+    pub set_number: i32,
+    pub set_type: String,
+    pub reps_actual: Option<i32>,
+    pub weight_actual: Option<f32>,
+    pub weight_type: String,
+    pub duration_actual: Option<i32>,
+    pub completed: i32,
+    pub is_pr: i32,
+    pub rest_seconds: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersonalRecordRecord {
+    pub id: i64,
+    pub exercise_id: i64,
+    pub record_type: String,
+    pub value: f32,
+    pub achieved_at: String,
+    pub session_id: i64,
+}
+
 /// Normalizes a comma-separated string of days into a vector of properly capitalized strings.
 pub fn normalize_days(input: &str) -> Vec<String> {
     input

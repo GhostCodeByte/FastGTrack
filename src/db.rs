@@ -1,13 +1,18 @@
 use std::{cell::RefCell, path::Path};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use chrono::Local;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::models::{
-    now_stamp, weekday_order, ActiveWorkout, Equipment, Exercise, MuscleGroup, OptimizedExercise,
-    PersonalRecord, PlannedSet, RecordType, ScheduleEntry, SetType, TemplateDraft,
-    TemplateExercise, WeightType, WorkoutSessionSummary, WorkoutTemplate,
+use crate::{
+    models::{
+        ActiveWorkout, AppExportBundle, Equipment, Exercise, ExerciseRecord, MuscleGroup,
+        OptimizedExercise, PersonalRecord, PersonalRecordRecord, PlannedSet, PlannedSetRecord,
+        RecordType, ScheduleEntry, SessionSetRecord, SetType, TemplateDraft, TemplateExercise,
+        TemplateExerciseRecord, WeightType, WorkoutSessionRecord, WorkoutSessionSummary,
+        WorkoutTemplate, WorkoutTemplateRecord, now_stamp, weekday_order,
+    },
+    settings::AppSettings,
 };
 
 /// Core database handler that wraps an SQLite connection to persist and retrieve app data.
@@ -503,6 +508,244 @@ impl Database {
         Ok(())
     }
 
+    pub fn export_bundle(&self, settings: &AppSettings) -> Result<AppExportBundle> {
+        let conn = self.conn.borrow();
+
+        let exercises = {
+            let mut stmt = conn.prepare("SELECT id, name, muscle_group, equipment, description, image_path, is_timed, is_bodyweight, source, created_at FROM exercises ORDER BY id")?;
+            stmt.query_map([], |row| {
+                Ok(ExerciseRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    muscle_group: row.get(2)?,
+                    equipment: row.get(3)?,
+                    description: row.get(4)?,
+                    image_path: row.get(5)?,
+                    is_timed: row.get(6)?,
+                    is_bodyweight: row.get(7)?,
+                    source: row.get(8)?,
+                    created_at: row.get(9)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+
+        let workout_templates = {
+            let mut stmt = conn.prepare("SELECT id, name, icon, assigned_days, created_at FROM workout_templates ORDER BY id")?;
+            stmt.query_map([], |row| {
+                Ok(WorkoutTemplateRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    icon: row.get(2)?,
+                    assigned_days: row.get(3)?,
+                    created_at: row.get(4)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+
+        let template_exercises = {
+            let mut stmt = conn.prepare("SELECT id, template_id, exercise_id, order_index FROM template_exercises ORDER BY id")?;
+            stmt.query_map([], |row| {
+                Ok(TemplateExerciseRecord {
+                    id: row.get(0)?,
+                    template_id: row.get(1)?,
+                    exercise_id: row.get(2)?,
+                    order_index: row.get(3)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+
+        let planned_sets = {
+            let mut stmt = conn.prepare("SELECT id, template_exercise_id, set_number, set_type, reps, duration_seconds, weight, weight_type, rest_seconds FROM planned_sets ORDER BY id")?;
+            stmt.query_map([], |row| {
+                Ok(PlannedSetRecord {
+                    id: row.get(0)?,
+                    template_exercise_id: row.get(1)?,
+                    set_number: row.get(2)?,
+                    set_type: row.get(3)?,
+                    reps: row.get(4)?,
+                    duration_seconds: row.get(5)?,
+                    weight: row.get(6)?,
+                    weight_type: row.get(7)?,
+                    rest_seconds: row.get(8)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+
+        let workout_sessions = {
+            let mut stmt = conn.prepare("SELECT id, template_id, template_name, icon, started_at, finished_at, duration_seconds, total_volume, pr_count FROM workout_sessions ORDER BY id")?;
+            stmt.query_map([], |row| {
+                Ok(WorkoutSessionRecord {
+                    id: row.get(0)?,
+                    template_id: row.get(1)?,
+                    template_name: row.get(2)?,
+                    icon: row.get(3)?,
+                    started_at: row.get(4)?,
+                    finished_at: row.get(5)?,
+                    duration_seconds: row.get(6)?,
+                    total_volume: row.get(7)?,
+                    pr_count: row.get(8)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+
+        let session_sets = {
+            let mut stmt = conn.prepare("SELECT id, session_id, exercise_id, exercise_name, set_number, set_type, reps_actual, weight_actual, weight_type, duration_actual, completed, is_pr, rest_seconds FROM session_sets ORDER BY id")?;
+            stmt.query_map([], |row| {
+                Ok(SessionSetRecord {
+                    id: row.get(0)?,
+                    session_id: row.get(1)?,
+                    exercise_id: row.get(2)?,
+                    exercise_name: row.get(3)?,
+                    set_number: row.get(4)?,
+                    set_type: row.get(5)?,
+                    reps_actual: row.get(6)?,
+                    weight_actual: row.get(7)?,
+                    weight_type: row.get(8)?,
+                    duration_actual: row.get(9)?,
+                    completed: row.get(10)?,
+                    is_pr: row.get(11)?,
+                    rest_seconds: row.get(12)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+
+        let personal_records = {
+            let mut stmt = conn.prepare("SELECT id, exercise_id, record_type, value, achieved_at, session_id FROM personal_records ORDER BY id")?;
+            stmt.query_map([], |row| {
+                Ok(PersonalRecordRecord {
+                    id: row.get(0)?,
+                    exercise_id: row.get(1)?,
+                    record_type: row.get(2)?,
+                    value: row.get(3)?,
+                    achieved_at: row.get(4)?,
+                    session_id: row.get(5)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+
+        Ok(AppExportBundle {
+            schema_version: 1,
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+            exported_at: now_stamp(),
+            settings: settings.clone(),
+            exercises,
+            workout_templates,
+            template_exercises,
+            planned_sets,
+            workout_sessions,
+            session_sets,
+            personal_records,
+        })
+    }
+
+    pub fn import_bundle(&self, bundle: &AppExportBundle) -> Result<()> {
+        if bundle.schema_version != 1 {
+            bail!(
+                "unsupported import schema version: {}",
+                bundle.schema_version
+            );
+        }
+
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn.transaction()?;
+        tx.execute_batch(
+            "PRAGMA foreign_keys = OFF;
+             DELETE FROM personal_records;
+             DELETE FROM session_sets;
+             DELETE FROM workout_sessions;
+             DELETE FROM planned_sets;
+             DELETE FROM template_exercises;
+             DELETE FROM workout_templates;
+             DELETE FROM exercises;",
+        )?;
+
+        for row in &bundle.exercises {
+            tx.execute(
+                "INSERT INTO exercises (id, name, muscle_group, equipment, description, image_path, is_timed, is_bodyweight, source, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                params![row.id, row.name, row.muscle_group, row.equipment, row.description, row.image_path, row.is_timed, row.is_bodyweight, row.source, row.created_at],
+            )?;
+        }
+        for row in &bundle.workout_templates {
+            tx.execute(
+                "INSERT INTO workout_templates (id, name, icon, assigned_days, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![row.id, row.name, row.icon, row.assigned_days, row.created_at],
+            )?;
+        }
+        for row in &bundle.template_exercises {
+            tx.execute(
+                "INSERT INTO template_exercises (id, template_id, exercise_id, order_index) VALUES (?1, ?2, ?3, ?4)",
+                params![row.id, row.template_id, row.exercise_id, row.order_index],
+            )?;
+        }
+        for row in &bundle.planned_sets {
+            tx.execute(
+                "INSERT INTO planned_sets (id, template_exercise_id, set_number, set_type, reps, duration_seconds, weight, weight_type, rest_seconds) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![row.id, row.template_exercise_id, row.set_number, row.set_type, row.reps, row.duration_seconds, row.weight, row.weight_type, row.rest_seconds],
+            )?;
+        }
+        for row in &bundle.workout_sessions {
+            tx.execute(
+                "INSERT INTO workout_sessions (id, template_id, template_name, icon, started_at, finished_at, duration_seconds, total_volume, pr_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![row.id, row.template_id, row.template_name, row.icon, row.started_at, row.finished_at, row.duration_seconds, row.total_volume, row.pr_count],
+            )?;
+        }
+        for row in &bundle.session_sets {
+            tx.execute(
+                "INSERT INTO session_sets (id, session_id, exercise_id, exercise_name, set_number, set_type, reps_actual, weight_actual, weight_type, duration_actual, completed, is_pr, rest_seconds) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                params![row.id, row.session_id, row.exercise_id, row.exercise_name, row.set_number, row.set_type, row.reps_actual, row.weight_actual, row.weight_type, row.duration_actual, row.completed, row.is_pr, row.rest_seconds],
+            )?;
+        }
+        for row in &bundle.personal_records {
+            tx.execute(
+                "INSERT INTO personal_records (id, exercise_id, record_type, value, achieved_at, session_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![row.id, row.exercise_id, row.record_type, row.value, row.achieved_at, row.session_id],
+            )?;
+        }
+
+        tx.execute_batch("PRAGMA foreign_keys = ON;")?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn clear_history(&self) -> Result<()> {
+        self.conn.borrow().execute_batch(
+            "DELETE FROM personal_records; DELETE FROM session_sets; DELETE FROM workout_sessions;",
+        )?;
+        Ok(())
+    }
+
+    pub fn clear_templates(&self) -> Result<()> {
+        self.conn.borrow().execute_batch("DELETE FROM planned_sets; DELETE FROM template_exercises; DELETE FROM workout_templates;")?;
+        Ok(())
+    }
+
+    pub fn clear_custom_exercises(&self) -> Result<()> {
+        self.conn
+            .borrow()
+            .execute("DELETE FROM exercises WHERE source != 'system'", [])?;
+        Ok(())
+    }
+
+    pub fn clear_all_data(&self) -> Result<()> {
+        self.conn.borrow().execute_batch(
+            "DELETE FROM personal_records;
+             DELETE FROM session_sets;
+             DELETE FROM workout_sessions;
+             DELETE FROM planned_sets;
+             DELETE FROM template_exercises;
+             DELETE FROM workout_templates;
+             DELETE FROM exercises;",
+        )?;
+        Ok(())
+    }
+
     /// Retrieves the full, detailed structure of a specific workout template (usually for editing or starting it).
     pub fn load_template(&self, template_id: i64) -> Result<Option<WorkoutTemplate>> {
         let conn = self.conn.borrow();
@@ -953,4 +1196,3 @@ impl Database {
             .map_err(Into::into)
     }
 }
-
