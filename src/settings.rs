@@ -1,8 +1,14 @@
 use std::{fs, path::PathBuf};
 
+#[cfg(target_os = "android")]
+use std::{path::Path, sync::OnceLock};
+
 use anyhow::{Context, Result};
 use chrono::Local;
 use serde::{Deserialize, Serialize};
+
+#[cfg(target_os = "android")]
+static STORAGE_DIR_OVERRIDE: OnceLock<PathBuf> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
@@ -30,10 +36,20 @@ impl Default for AppSettings {
 }
 
 pub fn app_storage_dir() -> PathBuf {
+    #[cfg(target_os = "android")]
+    if let Some(path) = STORAGE_DIR_OVERRIDE.get() {
+        return path.clone();
+    }
+
     dirs::data_local_dir()
         .or_else(dirs::home_dir)
         .unwrap_or_else(|| PathBuf::from("."))
         .join("FastGTrack")
+}
+
+#[cfg(target_os = "android")]
+pub fn set_app_storage_dir(path: impl AsRef<Path>) {
+    let _ = STORAGE_DIR_OVERRIDE.set(path.as_ref().to_path_buf());
 }
 
 pub fn settings_path() -> PathBuf {

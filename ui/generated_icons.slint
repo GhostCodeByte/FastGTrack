@@ -1,14 +1,14 @@
 export global IconData {
     public pure function next-icon(current: string) -> string {
-        if (current == "Run") { return "leg"; }
-        if (current == "leg") { return "HandStand"; }
-        if (current == "HandStand") { return "Bench"; }
-        if (current == "Bench") { return "Run"; }
-        return "Run";
+        if (current == "Bench") { return "HandStand"; }
+        if (current == "HandStand") { return "leg"; }
+        if (current == "leg") { return "Run"; }
+        if (current == "Run") { return "Bench"; }
+        return "Bench";
     }
 }
 
 export component DynamicIcon inherits Image {
     in property <string> icon-name;
-    source: icon-name == "Run" ? @image-url("../icons/planIcon/Run.png") : icon-name == "leg" ? @image-url("../icons/planIcon/leg.png") : icon-name == "HandStand" ? @image-url("../icons/planIcon/HandStand.png") : icon-name == "Bench" ? @image-url("../icons/planIcon/Bench.png") : @image-url("../icons/planIcon/Run.png");
+    source: icon-name == "Bench" ? @image-url("../icons/planIcon/Bench.png") : icon-name == "HandStand" ? @image-url("../icons/planIcon/HandStand.png") : icon-name == "leg" ? @image-url("../icons/planIcon/leg.png") : icon-name == "Run" ? @image-url("../icons/planIcon/Run.png") : @image-url("../icons/planIcon/Bench.png");
 }

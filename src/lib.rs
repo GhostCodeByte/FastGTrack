@@ -16,6 +16,8 @@ use settings::{
     AppSettings, app_storage_dir, backups_dir, ensure_storage_dirs, exports_dir, latest_json_file,
     load_settings, normalize_hex_color, save_settings, settings_path, timestamped_file,
 };
+#[cfg(target_os = "android")]
+use settings::set_app_storage_dir;
 use slint::{ModelRc, SharedString, VecModel};
 
 slint::include_modules!();
@@ -98,10 +100,13 @@ fn android_main(app: slint::android::AndroidApp) {
         return;
     }
 
-    let database_path = app
+    let storage_dir = app
         .internal_data_path()
         .unwrap_or_else(|| PathBuf::from("/data/local/tmp"))
-        .join("fastgtrack.db");
+        .join("FastGTrack");
+    set_app_storage_dir(&storage_dir);
+
+    let database_path = storage_dir.join("fastgtrack.db");
 
     if let Err(error) = run_with_database_path(database_path) {
         eprintln!("FastGTrack Android startup failed: {error}");
