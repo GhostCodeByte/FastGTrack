@@ -103,7 +103,7 @@ export component WorkoutScreen inherits Rectangle {
     }
 
     // ── SCROLLABLE BODY ───────────────────────────────────────────
-    ScrollView {
+    workout_scroll := ScrollView {
         x: 0;
         y: 56px;
         width: parent.width;
@@ -187,6 +187,7 @@ export component WorkoutScreen inherits Rectangle {
                 TouchArea {
                     clicked => {
                         root.select-active-exercise(ex.index);
+                        workout_scroll.viewport-y = 0px - (8px + ex.index * 50px);
                     }
                 }
             }
@@ -209,8 +210,10 @@ export component WorkoutScreen inherits Rectangle {
                             parent.swipe-tracking = false;
                             if self.mouse-y - parent.swipe-start-y > 60px {
                                 root.select-active-exercise(root.current-exercise-index - 1);
+                                workout_scroll.viewport-y = 0px - (8px + (root.current-exercise-index - 1) * 50px);
                             } else if parent.swipe-start-y - self.mouse-y > 60px {
                                 root.select-active-exercise(root.current-exercise-index + 1);
+                                workout_scroll.viewport-y = 0px - (8px + (root.current-exercise-index + 1) * 50px);
                             }
                         } else if ev.kind == PointerEventKind.cancel {
                             parent.swipe-tracking = false;
@@ -419,8 +422,20 @@ export component WorkoutScreen inherits Rectangle {
                                     font-weight: 800;
                                     horizontal-alignment: center;
                                     vertical-alignment: center;
+                                    input-type: decimal;
                                     single-line: true;
-                                    edited => { set-row.live-kg = self.text; }
+                                    edited => {
+                                        set-row.live-kg = self.text;
+                                        workout_scroll.viewport-y = 0px - (8px + root.current-exercise-index * 50px);
+                                    }
+                                }
+
+                                TouchArea {
+                                    clicked => {
+                                        workout_scroll.viewport-y = 0px - (8px + root.current-exercise-index * 50px);
+                                        kg_input.focus();
+                                        kg_input.select-all();
+                                    }
                                 }
                             }
 
@@ -443,8 +458,20 @@ export component WorkoutScreen inherits Rectangle {
                                     font-weight: 800;
                                     horizontal-alignment: center;
                                     vertical-alignment: center;
+                                    input-type: number;
                                     single-line: true;
-                                    edited => { set-row.live-reps = self.text; }
+                                    edited => {
+                                        set-row.live-reps = self.text;
+                                        workout_scroll.viewport-y = 0px - (8px + root.current-exercise-index * 50px);
+                                    }
+                                }
+
+                                TouchArea {
+                                    clicked => {
+                                        workout_scroll.viewport-y = 0px - (8px + root.current-exercise-index * 50px);
+                                        reps_input.focus();
+                                        reps_input.select-all();
+                                    }
                                 }
                             }
 

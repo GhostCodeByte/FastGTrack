@@ -135,6 +135,7 @@ export component MainWindow inherits Window {
     callback add-set(int);
     callback remove-set(int, int);
     callback update-set(int, int, string, string, string);
+    callback update-set-range(int, int, int, string, string);
     callback start-workout(int);
     callback select-active-exercise(int);
     callback complete-set(int, int, string, string, string);
@@ -316,6 +317,10 @@ export component MainWindow inherits Window {
 
                 update-set(index, set-index, reps, weight, rest) => {
                     root.update-set(index, set-index, reps, weight, rest);
+                }
+
+                update-set-range(index, start-set-index, end-set-index, field, value) => {
+                    root.update-set-range(index, start-set-index, end-set-index, field, value);
                 }
 
                 save-template(name, icon, day) => {

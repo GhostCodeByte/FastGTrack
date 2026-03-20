@@ -24,6 +24,36 @@ export component PlannerScreen inherits Rectangle {
     callback add-set(int);
     callback remove-set(int, int);
     callback update-set(int, int, string, string, string);
+    callback update-set-range(int, int, int, string, string);
+
+    private property <int> drag-draft-index: -1;
+    private property <int> drag-start-set-index: -1;
+    private property <int> drag-current-set-index: -1;
+    private property <string> drag-column: "";
+    private property <bool> drag-pointer-down: false;
+    private property <bool> drag-selection-active: false;
+    private property <length> drag-start-pointer-y: 0px;
+    private property <bool> selection-preview-active: false;
+    private property <string> selection-preview-value: "";
+    private property <int> selection-range-start: root.drag-start-set-index < root.drag-current-set-index
+        ? root.drag-start-set-index
+        : root.drag-current-set-index;
+    private property <int> selection-range-end: root.drag-start-set-index > root.drag-current-set-index
+        ? root.drag-start-set-index
+        : root.drag-current-set-index;
+
+    Timer {
+        interval: 350ms;
+        running: root.drag-pointer-down && !root.drag-selection-active;
+        triggered => {
+            if root.drag-pointer-down && root.drag-draft-index >= 0 && root.drag-column != "" {
+                root.drag-selection-active = true;
+                root.drag-current-set-index = root.drag-start-set-index;
+                root.selection-preview-active = false;
+                root.selection-preview-value = "";
+            }
+        }
+    }
 
     background: UiVars.screen-bg;
 
@@ -311,7 +341,13 @@ export component PlannerScreen inherits Rectangle {
                                     label: "DEL";
                                     fill: transparent;
                                     outlined: true;
-                                    clicked => { root.remove-draft-exercise(draft.index); }
+                                    clicked => {
+                                        root.drag-selection-active = false;
+                                        root.selection-preview-active = false;
+                                        root.selection-preview-value = "";
+                                        root.drag-column = "";
+                                        root.remove-draft-exercise(draft.index);
+                                    }
                                 }
                             }
 
@@ -344,18 +380,104 @@ export component PlannerScreen inherits Rectangle {
                                         x: 30px;
                                         width: 60px;
                                         height: 36px;
-                                        stroke: reps_input.has-focus ? UiVars.accent : UiVars.border-strong;
+                                        property <bool> selected: root.drag-selection-active
+                                            && root.drag-draft-index == draft.index
+                                            && root.drag-column == "reps"
+                                            && i >= root.selection-range-start
+                                            && i <= root.selection-range-end;
+                                        stroke: reps_input.has-focus || self.selected ? UiVars.accent : UiVars.border-strong;
+                                        background: self.selected ? UiVars.accent : transparent;
 
                                         reps_input := TextInput {
                                             width: parent.width;
                                             height: parent.height;
-                                            text: set.reps;
+                                            text: parent.selected && root.selection-preview-active
+                                                ? root.selection-preview-value
+                                                : set.reps;
                                             horizontal-alignment: center;
                                             vertical-alignment: center;
                                             font-size: 14px;
                                             font-weight: 800;
                                             color: UiVars.ink;
-                                            edited => { root.update-set(draft.index, i, self.text, weight_input.text, rest_input.text); }
+                                            input-type: number;
+                                            edited => {
+                                                if parent.selected {
+                                                    root.selection-preview-active = true;
+                                                    root.selection-preview-value = self.text;
+                                                    root.update-set-range(
+                                                        draft.index,
+                                                        root.selection-range-start,
+                                                        root.selection-range-end,
+                                                        "reps",
+                                                        self.text
+                                                    );
+                                                } else {
+                                                    root.selection-preview-active = false;
+                                                    root.selection-preview-value = "";
+                                                    root.update-set(draft.index, i, self.text, weight_input.text, rest_input.text);
+                                                }
+                                            }
+                                        }
+
+                                        TouchArea {
+                                            clicked => {
+                                                if !root.drag-selection-active
+                                                    || root.drag-draft-index != draft.index
+                                                    || root.drag-column != "reps"
+                                                    || i < root.selection-range-start
+                                                    || i > root.selection-range-end {
+                                                    root.drag-selection-active = false;
+                                                    root.selection-preview-active = false;
+                                                    root.selection-preview-value = "";
+                                                    root.drag-column = "";
+                                                }
+                                                reps_input.focus();
+                                                reps_input.select-all();
+                                            }
+
+                                            moved => {
+                                                if root.drag-pointer-down
+                                                    && root.drag-selection-active
+                                                    && root.drag-draft-index == draft.index
+                                                    && root.drag-column == "reps" {
+                                                    root.drag-current-set-index = clamp(
+                                                        root.drag-start-set-index
+                                                            + round((self.mouse-y - root.drag-start-pointer-y) / 44px),
+                                                        0,
+                                                        draft.sets_count - 1
+                                                    );
+                                                }
+                                            }
+
+                                            pointer-event(ev) => {
+                                                if ev.kind == PointerEventKind.down {
+                                                    if !root.drag-selection-active
+                                                        || root.drag-draft-index != draft.index
+                                                        || root.drag-column != "reps"
+                                                        || i < root.selection-range-start
+                                                        || i > root.selection-range-end {
+                                                        root.drag-selection-active = false;
+                                                        root.selection-preview-active = false;
+                                                        root.selection-preview-value = "";
+                                                    }
+                                                    root.drag-draft-index = draft.index;
+                                                    root.drag-start-set-index = i;
+                                                    root.drag-current-set-index = i;
+                                                    root.drag-column = "reps";
+                                                    root.drag-start-pointer-y = self.mouse-y;
+                                                    root.drag-pointer-down = true;
+                                                } else if ev.kind == PointerEventKind.up {
+                                                    root.drag-pointer-down = false;
+                                                    if root.drag-selection-active
+                                                        && root.drag-draft-index == draft.index
+                                                        && root.drag-column == "reps" {
+                                                        reps_input.focus();
+                                                        reps_input.select-all();
+                                                    }
+                                                } else if ev.kind == PointerEventKind.cancel {
+                                                    root.drag-pointer-down = false;
+                                                }
+                                            }
                                         }
                                     }
 
@@ -363,18 +485,104 @@ export component PlannerScreen inherits Rectangle {
                                         x: 100px;
                                         width: 60px;
                                         height: 36px;
-                                        stroke: weight_input.has-focus ? UiVars.accent : UiVars.border-strong;
+                                        property <bool> selected: root.drag-selection-active
+                                            && root.drag-draft-index == draft.index
+                                            && root.drag-column == "weight"
+                                            && i >= root.selection-range-start
+                                            && i <= root.selection-range-end;
+                                        stroke: weight_input.has-focus || self.selected ? UiVars.accent : UiVars.border-strong;
+                                        background: self.selected ? UiVars.accent : transparent;
 
                                         weight_input := TextInput {
                                             width: parent.width;
                                             height: parent.height;
-                                            text: set.weight;
+                                            text: parent.selected && root.selection-preview-active
+                                                ? root.selection-preview-value
+                                                : set.weight;
                                             horizontal-alignment: center;
                                             vertical-alignment: center;
                                             font-size: 14px;
                                             font-weight: 800;
                                             color: UiVars.ink;
-                                            edited => { root.update-set(draft.index, i, reps_input.text, self.text, rest_input.text); }
+                                            input-type: decimal;
+                                            edited => {
+                                                if parent.selected {
+                                                    root.selection-preview-active = true;
+                                                    root.selection-preview-value = self.text;
+                                                    root.update-set-range(
+                                                        draft.index,
+                                                        root.selection-range-start,
+                                                        root.selection-range-end,
+                                                        "weight",
+                                                        self.text
+                                                    );
+                                                } else {
+                                                    root.selection-preview-active = false;
+                                                    root.selection-preview-value = "";
+                                                    root.update-set(draft.index, i, reps_input.text, self.text, rest_input.text);
+                                                }
+                                            }
+                                        }
+
+                                        TouchArea {
+                                            clicked => {
+                                                if !root.drag-selection-active
+                                                    || root.drag-draft-index != draft.index
+                                                    || root.drag-column != "weight"
+                                                    || i < root.selection-range-start
+                                                    || i > root.selection-range-end {
+                                                    root.drag-selection-active = false;
+                                                    root.selection-preview-active = false;
+                                                    root.selection-preview-value = "";
+                                                    root.drag-column = "";
+                                                }
+                                                weight_input.focus();
+                                                weight_input.select-all();
+                                            }
+
+                                            moved => {
+                                                if root.drag-pointer-down
+                                                    && root.drag-selection-active
+                                                    && root.drag-draft-index == draft.index
+                                                    && root.drag-column == "weight" {
+                                                    root.drag-current-set-index = clamp(
+                                                        root.drag-start-set-index
+                                                            + round((self.mouse-y - root.drag-start-pointer-y) / 44px),
+                                                        0,
+                                                        draft.sets_count - 1
+                                                    );
+                                                }
+                                            }
+
+                                            pointer-event(ev) => {
+                                                if ev.kind == PointerEventKind.down {
+                                                    if !root.drag-selection-active
+                                                        || root.drag-draft-index != draft.index
+                                                        || root.drag-column != "weight"
+                                                        || i < root.selection-range-start
+                                                        || i > root.selection-range-end {
+                                                        root.drag-selection-active = false;
+                                                        root.selection-preview-active = false;
+                                                        root.selection-preview-value = "";
+                                                    }
+                                                    root.drag-draft-index = draft.index;
+                                                    root.drag-start-set-index = i;
+                                                    root.drag-current-set-index = i;
+                                                    root.drag-column = "weight";
+                                                    root.drag-start-pointer-y = self.mouse-y;
+                                                    root.drag-pointer-down = true;
+                                                } else if ev.kind == PointerEventKind.up {
+                                                    root.drag-pointer-down = false;
+                                                    if root.drag-selection-active
+                                                        && root.drag-draft-index == draft.index
+                                                        && root.drag-column == "weight" {
+                                                        weight_input.focus();
+                                                        weight_input.select-all();
+                                                    }
+                                                } else if ev.kind == PointerEventKind.cancel {
+                                                    root.drag-pointer-down = false;
+                                                }
+                                            }
                                         }
                                     }
 
@@ -393,7 +601,14 @@ export component PlannerScreen inherits Rectangle {
                                             font-size: 14px;
                                             font-weight: 800;
                                             color: UiVars.ink;
-                                            edited => { root.update-set(draft.index, i, reps_input.text, weight_input.text, self.text); }
+                                            input-type: number;
+                                            edited => {
+                                                root.drag-selection-active = false;
+                                                root.selection-preview-active = false;
+                                                root.selection-preview-value = "";
+                                                root.drag-column = "";
+                                                root.update-set(draft.index, i, reps_input.text, weight_input.text, self.text);
+                                            }
                                         }
                                     }
 
@@ -409,6 +624,10 @@ export component PlannerScreen inherits Rectangle {
                                         horizontal-alignment: center;
                                         TouchArea {
                                             clicked => {
+                                                root.drag-selection-active = false;
+                                                root.selection-preview-active = false;
+                                                root.selection-preview-value = "";
+                                                root.drag-column = "";
                                                 root.remove-set(draft.index, i);
                                             }
                                         }
@@ -436,6 +655,10 @@ export component PlannerScreen inherits Rectangle {
 
                                     TouchArea {
                                         clicked => {
+                                            root.drag-selection-active = false;
+                                            root.selection-preview-active = false;
+                                            root.selection-preview-value = "";
+                                            root.drag-column = "";
                                             root.add-set(draft.index);
                                         }
                                     }

@@ -632,6 +632,45 @@ fn wire_callbacks(ui: &MainWindow, state: Rc<RefCell<AppState>>) {
         }
     });
 
+    let _weak = ui.as_weak();
+    let state_for_update_set_range = state.clone();
+    ui.on_update_set_range(move |index, start_set_index, end_set_index, field, value| {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_update_set_range.borrow_mut();
+            let idx = usize::try_from(index).unwrap_or_default();
+            let start_idx = usize::try_from(start_set_index.min(end_set_index)).unwrap_or_default();
+            let end_idx = usize::try_from(start_set_index.max(end_set_index)).unwrap_or_default();
+
+            if let Some(draft) = state.template_draft.exercises.get_mut(idx) {
+                let clamped_end = end_idx.min(draft.sets.len().saturating_sub(1));
+                for set in draft
+                    .sets
+                    .iter_mut()
+                    .skip(start_idx)
+                    .take(clamped_end.saturating_sub(start_idx) + 1)
+                {
+                    match field.as_str() {
+                        "reps" => {
+                            if let Ok(reps) = parse_optional_i32(&value) {
+                                set.reps = reps;
+                            }
+                        }
+                        "weight" => {
+                            if let Ok(weight) = parse_optional_f32(&value) {
+                                set.weight = weight;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Ok(())
+        })();
+        if let Err(error) = outcome {
+            println!("Error updating set range: {}", error);
+        }
+    });
+
     let weak = ui.as_weak();
     let state_for_clear_draft = state.clone();
     ui.on_clear_draft(move || {
