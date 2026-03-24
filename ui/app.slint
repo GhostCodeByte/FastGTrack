@@ -113,11 +113,7 @@ export component MainWindow inherits Window {
     in-out property <string> settings-weight-unit: "Kg";
     in-out property <string> settings-set-count: "3";
     in-out property <string> settings-rep-target: "8";
-    in property <string> settings-storage-path: "";
-    in property <string> settings-database-path: "";
-    in property <string> settings-settings-path: "";
     in property <string> settings-last-export: "No export yet";
-    in property <string> settings-last-backup: "No backup yet";
     in property <string> settings-app-version: "0.0.0";
     in property <string> settings-schema-version: "1";
 
@@ -145,13 +141,9 @@ export component MainWindow inherits Window {
     callback save-settings();
     callback reset-colors();
     callback reset-defaults();
+    callback apply-theme-live();
     callback export-all-data();
     callback import-latest-export();
-    callback create-backup();
-    callback restore-latest-backup();
-    callback clear-history();
-    callback clear-templates();
-    callback clear-custom-exercises();
     callback reset-all-data();
 
     dummy-focus := FocusScope {
@@ -362,24 +354,16 @@ export component MainWindow inherits Window {
                 weight-unit <=> root.settings-weight-unit;
                 set-count <=> root.settings-set-count;
                 rep-target <=> root.settings-rep-target;
-                storage-path: root.settings-storage-path;
-                database-path: root.settings-database-path;
-                settings-path: root.settings-settings-path;
                 last-export: root.settings-last-export;
-                last-backup: root.settings-last-backup;
                 app-version: root.settings-app-version;
                 schema-version: root.settings-schema-version;
 
                 save-settings => { root.save-settings(); }
                 reset-colors => { root.reset-colors(); }
                 reset-defaults => { root.reset-defaults(); }
+                apply-theme-live => { root.apply-theme-live(); }
                 export-all-data => { root.export-all-data(); }
                 import-latest-export => { root.import-latest-export(); }
-                create-backup => { root.create-backup(); }
-                restore-latest-backup => { root.restore-latest-backup(); }
-                clear-history => { root.clear-history(); }
-                clear-templates => { root.clear-templates(); }
-                clear-custom-exercises => { root.clear-custom-exercises(); }
                 reset-all-data => { root.reset-all-data(); }
             }
         }
