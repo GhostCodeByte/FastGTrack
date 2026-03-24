@@ -714,25 +714,6 @@ impl Database {
         Ok(())
     }
 
-    pub fn clear_history(&self) -> Result<()> {
-        self.conn.borrow().execute_batch(
-            "DELETE FROM personal_records; DELETE FROM session_sets; DELETE FROM workout_sessions;",
-        )?;
-        Ok(())
-    }
-
-    pub fn clear_templates(&self) -> Result<()> {
-        self.conn.borrow().execute_batch("DELETE FROM planned_sets; DELETE FROM template_exercises; DELETE FROM workout_templates;")?;
-        Ok(())
-    }
-
-    pub fn clear_custom_exercises(&self) -> Result<()> {
-        self.conn
-            .borrow()
-            .execute("DELETE FROM exercises WHERE source != 'system'", [])?;
-        Ok(())
-    }
-
     pub fn clear_all_data(&self) -> Result<()> {
         self.conn.borrow().execute_batch(
             "DELETE FROM personal_records;

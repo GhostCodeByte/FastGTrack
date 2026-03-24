@@ -60,14 +60,9 @@ pub fn exports_dir() -> PathBuf {
     app_storage_dir().join("exports")
 }
 
-pub fn backups_dir() -> PathBuf {
-    app_storage_dir().join("backups")
-}
-
 pub fn ensure_storage_dirs() -> Result<()> {
     fs::create_dir_all(app_storage_dir()).context("failed to create app storage dir")?;
     fs::create_dir_all(exports_dir()).context("failed to create export dir")?;
-    fs::create_dir_all(backups_dir()).context("failed to create backup dir")?;
     Ok(())
 }
 

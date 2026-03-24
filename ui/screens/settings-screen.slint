@@ -114,6 +114,7 @@ component SettingsTextField inherits Rectangle {
     in property <string> label;
     in-out property <string> value;
     in property <string> placeholder: "";
+    callback value-edited;
 
     height: 74px;
     background: transparent;
@@ -149,6 +150,7 @@ component SettingsTextField inherits Rectangle {
             font-weight: 800;
             vertical-alignment: center;
             single-line: true;
+            edited => { root.value-edited(); }
         }
 
         if root.value == "" : Text {
@@ -392,28 +394,19 @@ export component SettingsScreen inherits Rectangle {
     in-out property <string> weight-unit;
     in-out property <string> set-count;
     in-out property <string> rep-target;
-    in property <string> storage-path;
-    in property <string> database-path;
-    in property <string> settings-path;
     in property <string> last-export;
-    in property <string> last-backup;
     in property <string> app-version;
     in property <string> schema-version;
 
     callback save-settings;
     callback reset-colors;
     callback reset-defaults;
+    callback apply-theme-live;
     callback export-all-data;
     callback import-latest-export;
-    callback create-backup;
-    callback restore-latest-backup;
-    callback clear-history;
-    callback clear-templates;
-    callback clear-custom-exercises;
     callback reset-all-data;
 
     property <bool> light-mode-active: (root.background-color == "#EFEDE8" || root.background-color == "#efede8") && root.text-color == "#111111";
-    property <bool> dark-mode-active: root.background-color == "#111111" && (root.text-color == "#EFEDE8" || root.text-color == "#efede8");
 
     background: UiVars.screen-bg;
 
@@ -429,50 +422,100 @@ export component SettingsScreen inherits Rectangle {
             padding-bottom: 34px;
             spacing: 16px;
 
-            SectionLabel { text: "SETTINGS"; }
-
-            SettingsSectionHeading {
+            VerticalBox {
                 horizontal-stretch: 1;
-                title: "APPEARANCE";
-                subtitle: "VISUAL INTERFACE";
-            }
+                spacing: 8px;
 
-            SettingsCard {
-                horizontal-stretch: 1;
-                height: 120px;
-
-                SmallNote {
-                    x: 12px;
-                    y: 10px;
-                    width: parent.width - 24px;
-                    text: "SYSTEM THEME";
+                SettingsSectionHeading {
+                    horizontal-stretch: 1;
+                    title: "WORKOUT DEFAULTS";
+                    subtitle: "PERFORMANCE PRESETS";
                 }
 
-                SettingsThemeButton {
-                    x: 12px;
-                    y: 30px;
-                    width: parent.width - 24px;
-                    height: 34px;
-                    label: "LIGHT MODE";
-                    icon: "☀";
-                    active: root.light-mode-active;
-                    pressed => {
-                        root.background-color = "#EFEDE8";
-                        root.text-color = "#111111";
+                SettingsCard {
+                    horizontal-stretch: 1;
+                    height: 342px;
+
+                    VerticalBox {
+                        x: 0;
+                        y: 0;
+                        width: parent.width;
+                        height: parent.height;
+                        padding: 12px;
+                        spacing: 10px;
+
+                        SettingsValueField {
+                            horizontal-stretch: 1;
+                            label: "REST TIME BETWEEN SETS";
+                            hint: "Auto-start timer after a completed set.";
+                            unit: "SEC";
+                            value <=> root.default-rest;
+                            placeholder: "90";
+                        }
+
+                        SettingsValueField {
+                            horizontal-stretch: 1;
+                            label: "DEFAULT SET COUNT";
+                            hint: "Standard volume for newly created exercises.";
+                            unit: "SETS";
+                            value <=> root.set-count;
+                            placeholder: "3";
+                        }
+
+                        SettingsValueField {
+                            horizontal-stretch: 1;
+                            label: "REP TARGET RANGE";
+                            hint: "Hypertrophy versus strength default target.";
+                            unit: "REPS";
+                            value <=> root.rep-target;
+                            placeholder: "8";
+                        }
+
+                        SettingsValueDropdownField {
+                            horizontal-stretch: 1;
+                            label: "WEIGHT UNIT";
+                            hint: "Primary unit shown in workouts and stats.";
+                            model: ["Kg", "Lbs"];
+                            value <=> root.weight-unit;
+                        }
                     }
                 }
+            }
 
-                SettingsThemeButton {
-                    x: 12px;
-                    y: 72px;
-                    width: parent.width - 24px;
-                    height: 34px;
-                    label: "DARK MODE";
-                    icon: "◐";
-                    active: root.dark-mode-active;
-                    pressed => {
-                        root.background-color = "#111111";
-                        root.text-color = "#EFEDE8";
+            VerticalBox {
+                horizontal-stretch: 1;
+                spacing: 8px;
+
+                SettingsSectionHeading {
+                    horizontal-stretch: 1;
+                    title: "APPEARANCE";
+                    subtitle: "VISUAL INTERFACE";
+                }
+
+                SettingsCard {
+                    horizontal-stretch: 1;
+                    height: 78px;
+
+                    SmallNote {
+                        x: 12px;
+                        y: 10px;
+                        width: parent.width - 24px;
+                        text: "SYSTEM THEME";
+                    }
+
+                    SettingsThemeButton {
+                        x: 12px;
+                        y: 30px;
+                        width: parent.width - 24px;
+                        height: 34px;
+                        label: "LIGHT MODE";
+                        icon: "☀";
+                        active: root.light-mode-active;
+                        pressed => {
+                            root.background-color = "#EFEDE8";
+                            root.text-color = "#111111";
+                            root.apply-theme-live();
+                        }
                     }
                 }
             }
@@ -499,27 +542,42 @@ export component SettingsScreen inherits Rectangle {
                     SettingsColorChip {
                         swatch: #F2CF00;
                         active: root.accent-color == "#F2CF00" || root.accent-color == "#f2cf00";
-                        pressed => { root.accent-color = "#F2CF00"; }
+                        pressed => {
+                            root.accent-color = "#F2CF00";
+                            root.apply-theme-live();
+                        }
                     }
                     SettingsColorChip {
                         swatch: #FF5A36;
                         active: root.accent-color == "#FF5A36" || root.accent-color == "#ff5a36";
-                        pressed => { root.accent-color = "#FF5A36"; }
+                        pressed => {
+                            root.accent-color = "#FF5A36";
+                            root.apply-theme-live();
+                        }
                     }
                     SettingsColorChip {
                         swatch: #36E85A;
                         active: root.accent-color == "#36E85A" || root.accent-color == "#36e85a";
-                        pressed => { root.accent-color = "#36E85A"; }
+                        pressed => {
+                            root.accent-color = "#36E85A";
+                            root.apply-theme-live();
+                        }
                     }
                     SettingsColorChip {
                         swatch: #4468F1;
                         active: root.accent-color == "#4468F1" || root.accent-color == "#4468f1";
-                        pressed => { root.accent-color = "#4468F1"; }
+                        pressed => {
+                            root.accent-color = "#4468F1";
+                            root.apply-theme-live();
+                        }
                     }
                     SettingsColorChip {
                         swatch: #D93FE0;
                         active: root.accent-color == "#D93FE0" || root.accent-color == "#d93fe0";
-                        pressed => { root.accent-color = "#D93FE0"; }
+                        pressed => {
+                            root.accent-color = "#D93FE0";
+                            root.apply-theme-live();
+                        }
                     }
                 }
             }
@@ -542,6 +600,7 @@ export component SettingsScreen inherits Rectangle {
                     label: "ACCENT HEX";
                     value <=> root.accent-color;
                     placeholder: "#F2CF00";
+                    value-edited => { root.apply-theme-live(); }
                 }
 
                 SettingsTextField {
@@ -551,6 +610,7 @@ export component SettingsScreen inherits Rectangle {
                     label: "BACKGROUND HEX";
                     value <=> root.background-color;
                     placeholder: "#EFEDE8";
+                    value-edited => { root.apply-theme-live(); }
                 }
 
                 SettingsTextField {
@@ -560,6 +620,7 @@ export component SettingsScreen inherits Rectangle {
                     label: "TEXT HEX";
                     value <=> root.text-color;
                     placeholder: "#111111";
+                    value-edited => { root.apply-theme-live(); }
                 }
 
                 ActionButton {
@@ -573,122 +634,49 @@ export component SettingsScreen inherits Rectangle {
                 }
             }
 
-            SettingsSectionHeading {
+            VerticalBox {
                 horizontal-stretch: 1;
-                title: "WORKOUT DEFAULTS";
-                subtitle: "PERFORMANCE PRESETS";
-            }
+                spacing: 8px;
 
-            SettingsCard {
-                horizontal-stretch: 1;
-                height: 342px;
-
-                VerticalBox {
-                    x: 0;
-                    y: 0;
-                    width: parent.width;
-                    height: parent.height;
-                    padding: 12px;
-                    spacing: 10px;
-
-                    SettingsValueField {
-                        horizontal-stretch: 1;
-                        label: "REST TIME BETWEEN SETS";
-                        hint: "Auto-start timer after a completed set.";
-                        unit: "SEC";
-                        value <=> root.default-rest;
-                        placeholder: "90";
-                    }
-
-                    SettingsValueField {
-                        horizontal-stretch: 1;
-                        label: "DEFAULT SET COUNT";
-                        hint: "Standard volume for newly created exercises.";
-                        unit: "SETS";
-                        value <=> root.set-count;
-                        placeholder: "3";
-                    }
-
-                    SettingsValueField {
-                        horizontal-stretch: 1;
-                        label: "REP TARGET RANGE";
-                        hint: "Hypertrophy versus strength default target.";
-                        unit: "REPS";
-                        value <=> root.rep-target;
-                        placeholder: "8";
-                    }
-
-                    SettingsValueDropdownField {
-                        horizontal-stretch: 1;
-                        label: "WEIGHT UNIT";
-                        hint: "Primary unit shown in workouts and stats.";
-                        model: ["Kg", "Lbs"];
-                        value <=> root.weight-unit;
-                    }
-                }
-            }
-
-            SettingsSectionHeading {
-                horizontal-stretch: 1;
-                title: "DATA MANAGEMENT";
-                subtitle: "PRIVACY & STORAGE";
-            }
-
-            Rectangle {
-                horizontal-stretch: 1;
-                height: 222px;
-                background: transparent;
-
-                HorizontalBox {
-                    x: 0;
-                    y: 0;
-                    width: parent.width;
-                    height: 102px;
-                    padding: 0;
-                    spacing: 10px;
-
-                    SettingsActionTile {
-                        horizontal-stretch: 1;
-                        label: "EXPORT DATA";
-                        detail: "Create a portable local export.";
-                        pressed => { root.export-all-data(); }
-                    }
-
-                    SettingsActionTile {
-                        horizontal-stretch: 1;
-                        label: "IMPORT JSON";
-                        detail: "Restore the newest saved export.";
-                        pressed => { root.import-latest-export(); }
-                    }
+                SettingsSectionHeading {
+                    horizontal-stretch: 1;
+                    title: "DATA MANAGEMENT";
+                    subtitle: "PRIVACY & STORAGE";
                 }
 
-                HorizontalBox {
-                    x: 0;
-                    y: 112px;
-                    width: parent.width;
+                Rectangle {
+                    horizontal-stretch: 1;
                     height: 102px;
-                    padding: 0;
-                    spacing: 10px;
+                    background: transparent;
 
-                    SettingsActionTile {
-                        horizontal-stretch: 1;
-                        label: "BACKUP SNAPSHOT";
-                        detail: "Create a timestamped backup file.";
-                        pressed => { root.create-backup(); }
-                    }
+                    HorizontalBox {
+                        x: 0;
+                        y: 0;
+                        width: parent.width;
+                        height: 102px;
+                        padding: 0;
+                        spacing: 10px;
 
-                    SettingsActionTile {
-                        horizontal-stretch: 1;
-                        label: "RESTORE BACKUP";
-                        detail: "Load the newest backup snapshot.";
-                        pressed => { root.restore-latest-backup(); }
+                        SettingsActionTile {
+                            horizontal-stretch: 1;
+                            label: "EXPORT DATA";
+                            detail: "Create a portable local export.";
+                            pressed => { root.export-all-data(); }
+                        }
+
+                        SettingsActionTile {
+                            horizontal-stretch: 1;
+                            label: "IMPORT JSON";
+                            detail: "Restore the newest saved export.";
+                            pressed => { root.import-latest-export(); }
+                        }
                     }
                 }
             }
 
             SettingsCard {
                 horizontal-stretch: 1;
-                height: 354px;
+                height: 204px;
 
                 VerticalBox {
                     x: 0;
@@ -704,61 +692,20 @@ export component SettingsScreen inherits Rectangle {
                         value: root.last-export;
                     }
 
-                    SettingsInfoCard {
+                    SettingsActionTile {
                         horizontal-stretch: 1;
-                        label: "LAST BACKUP";
-                        value: root.last-backup;
-                    }
-
-                    HorizontalBox {
-                        horizontal-stretch: 1;
-                        height: 72px;
-                        padding: 0;
-                        spacing: 10px;
-
-                        SettingsActionTile {
-                            horizontal-stretch: 1;
-                            label: "DELETE HISTORY";
-                            detail: "Remove completed workout sessions.";
-                            pressed => { root.clear-history(); }
-                        }
-
-                        SettingsActionTile {
-                            horizontal-stretch: 1;
-                            label: "DELETE TEMPLATES";
-                            detail: "Remove saved plans and drafts.";
-                            pressed => { root.clear-templates(); }
-                        }
-                    }
-
-                    HorizontalBox {
-                        horizontal-stretch: 1;
-                        height: 72px;
-                        padding: 0;
-                        spacing: 10px;
-
-                        SettingsActionTile {
-                            horizontal-stretch: 1;
-                            label: "DELETE CUSTOM EXERCISES";
-                            detail: "Keep bundled exercises only.";
-                            pressed => { root.clear-custom-exercises(); }
-                        }
-
-                        SettingsActionTile {
-                            horizontal-stretch: 1;
-                            label: "WIPE DATA";
-                            detail: "Delete all local app data.";
-                            fill: #FF5A36;
-                            text-color: #111111;
-                            pressed => { root.reset-all-data(); }
-                        }
+                        label: "DELETE ALL DATA";
+                        detail: "Delete all local app data at once.";
+                        fill: #FF5A36;
+                        text-color: #111111;
+                        pressed => { root.reset-all-data(); }
                     }
                 }
             }
 
             SettingsCard {
                 horizontal-stretch: 1;
-                height: 366px;
+                height: 152px;
 
                 VerticalBox {
                     x: 0;
@@ -771,25 +718,7 @@ export component SettingsScreen inherits Rectangle {
                     SettingsInfoCard {
                         horizontal-stretch: 1;
                         label: "PRIVACY";
-                        value: "All data stays on this device until you export or back it up manually.";
-                    }
-
-                    SettingsInfoCard {
-                        horizontal-stretch: 1;
-                        label: "STORAGE PATH";
-                        value: root.storage-path;
-                    }
-
-                    SettingsInfoCard {
-                        horizontal-stretch: 1;
-                        label: "DATABASE PATH";
-                        value: root.database-path;
-                    }
-
-                    SettingsInfoCard {
-                        horizontal-stretch: 1;
-                        label: "SETTINGS FILE";
-                        value: root.settings-path;
+                        value: "All data stays on this device unless you export it.";
                     }
                 }
             }
@@ -822,7 +751,7 @@ export component SettingsScreen inherits Rectangle {
 
             Rectangle {
                 horizontal-stretch: 1;
-                height: 132px;
+                height: 120px;
                 background: transparent;
 
                 ActionButton {
@@ -855,13 +784,6 @@ export component SettingsScreen inherits Rectangle {
                         outlined: true;
                         clicked => { root.reset-defaults(); }
                     }
-                }
-
-                SmallNote {
-                    x: 0;
-                    y: 122px;
-                    width: parent.width;
-                    text: "Theme and workout defaults are applied when you save.";
                 }
             }
         }

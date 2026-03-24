@@ -13,8 +13,8 @@ use models::{
     format_set_plan, normalize_days,
 };
 use settings::{
-    AppSettings, app_storage_dir, backups_dir, ensure_storage_dirs, exports_dir, latest_json_file,
-    load_settings, normalize_hex_color, save_settings, settings_path, timestamped_file,
+    AppSettings, app_storage_dir, ensure_storage_dirs, exports_dir, latest_json_file,
+    load_settings, normalize_hex_color, save_settings, timestamped_file,
 };
 #[cfg(target_os = "android")]
 use settings::set_app_storage_dir;
@@ -25,29 +25,25 @@ slint::include_modules!();
 /// Holds the central, active state of the FastGTrack application.
 struct AppState {
     db: Rc<Database>,
-    database_path: PathBuf,
     settings: AppSettings,
     template_draft: TemplateDraft,
     active_workout: Option<ActiveWorkout>,
     selected_exercise_index: usize,
     status_message: String,
     last_export_label: String,
-    last_backup_label: String,
 }
 
 impl AppState {
     /// Creates a new, initially empty application state wrapping the given database connection.
-    fn new(db: Rc<Database>, database_path: PathBuf, settings: AppSettings) -> Self {
+    fn new(db: Rc<Database>, settings: AppSettings) -> Self {
         Self {
             db,
-            database_path,
             settings,
             template_draft: TemplateDraft::default(),
             active_workout: None,
             selected_exercise_index: 0,
             status_message: "".into(),
             last_export_label: "No export yet".into(),
-            last_backup_label: "No backup yet".into(),
         }
     }
 }
@@ -66,11 +62,7 @@ fn run_with_database_path(database_path: PathBuf) -> Result<()> {
     ensure_storage_dirs()?;
     let settings = load_settings().context("failed to load app settings")?;
     let db = Rc::new(Database::open(&database_path).context("failed to bootstrap FastGTrack DB")?);
-    let state = Rc::new(RefCell::new(AppState::new(
-        db,
-        database_path.clone(),
-        settings,
-    )));
+    let state = Rc::new(RefCell::new(AppState::new(db, settings)));
     let ui = MainWindow::new().context("failed to construct main window")?;
     apply_theme(&ui, &state.borrow().settings);
 
@@ -193,11 +185,7 @@ fn sync_settings_ui(ui: &MainWindow, state: &AppState) {
     ui.set_settings_weight_unit(state.settings.default_weight_unit.clone().into());
     ui.set_settings_set_count(state.settings.default_set_count.to_string().into());
     ui.set_settings_rep_target(state.settings.default_rep_target.to_string().into());
-    ui.set_settings_storage_path(app_storage_dir().display().to_string().into());
-    ui.set_settings_database_path(state.database_path.display().to_string().into());
-    ui.set_settings_settings_path(settings_path().display().to_string().into());
     ui.set_settings_last_export(state.last_export_label.clone().into());
-    ui.set_settings_last_backup(state.last_backup_label.clone().into());
     ui.set_settings_app_version(env!("CARGO_PKG_VERSION").into());
     ui.set_settings_schema_version("1".into());
 }
@@ -272,6 +260,34 @@ fn wire_callbacks(ui: &MainWindow, state: Rc<RefCell<AppState>>) {
             refresh_home(ui, state).ok();
             refresh_planner(ui, state);
             refresh_status(ui, state);
+        });
+    });
+
+    let weak = ui.as_weak();
+    let state_for_live_theme = state.clone();
+    ui.on_apply_theme_live(move || {
+        let outcome = (|| -> Result<()> {
+            let mut state = state_for_live_theme.borrow_mut();
+            if let Some(ui) = weak.upgrade() {
+                state.settings.accent_color = normalize_hex_color(
+                    &ui.get_settings_accent_color().to_string(),
+                    &state.settings.accent_color,
+                );
+                state.settings.background_color = normalize_hex_color(
+                    &ui.get_settings_background_color().to_string(),
+                    &state.settings.background_color,
+                );
+                state.settings.text_color = normalize_hex_color(
+                    &ui.get_settings_text_color().to_string(),
+                    &state.settings.text_color,
+                );
+                save_settings(&state.settings)?;
+                apply_theme(&ui, &state.settings);
+            }
+            Ok(())
+        })();
+        with_partial_refresh(&weak, &state_for_live_theme, outcome, |ui, state| {
+            sync_settings_ui(ui, state);
         });
     });
 
@@ -364,105 +380,6 @@ fn wire_callbacks(ui: &MainWindow, state: Rc<RefCell<AppState>>) {
             sync_settings_ui(ui, state);
             refresh_status(ui, state);
         });
-    });
-
-    let weak = ui.as_weak();
-    let state_for_backup = state.clone();
-    ui.on_create_backup(move || {
-        let outcome = (|| -> Result<()> {
-            let mut state = state_for_backup.borrow_mut();
-            let path = timestamped_file(backups_dir(), "fastgtrack-backup");
-            let bundle = state.db.export_bundle(&state.settings)?;
-            write_bundle(&path, &bundle)?;
-            state.last_backup_label = path.display().to_string();
-            state.status_message = format!("Backup created at {}", path.display());
-            if let Some(ui) = weak.upgrade() {
-                sync_settings_ui(&ui, &state);
-            }
-            Ok(())
-        })();
-        with_partial_refresh(&weak, &state_for_backup, outcome, |ui, state| {
-            sync_settings_ui(ui, state);
-            refresh_status(ui, state);
-        });
-    });
-
-    let weak = ui.as_weak();
-    let state_for_restore = state.clone();
-    ui.on_restore_latest_backup(move || {
-        let outcome = (|| -> Result<()> {
-            let mut state = state_for_restore.borrow_mut();
-            let path = latest_json_file(backups_dir()).context("no backup file found")?;
-            let bundle = read_bundle(&path)?;
-            state.db.import_bundle(&bundle)?;
-            state.settings = bundle.settings.clone();
-            save_settings(&state.settings)?;
-            if let Some(ui) = weak.upgrade() {
-                apply_theme(&ui, &state.settings);
-                sync_settings_ui(&ui, &state);
-                refresh_ui(&ui, &mut state)?;
-            }
-            state.last_backup_label = path.display().to_string();
-            state.status_message = format!("Backup restored from {}", path.display());
-            Ok(())
-        })();
-        with_partial_refresh(&weak, &state_for_restore, outcome, |ui, state| {
-            sync_settings_ui(ui, state);
-            refresh_status(ui, state);
-        });
-    });
-
-    let weak = ui.as_weak();
-    let state_for_clear_history = state.clone();
-    ui.on_clear_history(move || {
-        let outcome = (|| -> Result<()> {
-            let mut state = state_for_clear_history.borrow_mut();
-            state.db.clear_history()?;
-            state.status_message = "Workout history deleted.".into();
-            Ok(())
-        })();
-        with_partial_refresh(&weak, &state_for_clear_history, outcome, |ui, state| {
-            refresh_home(ui, state).ok();
-            refresh_stats(ui, state);
-            refresh_status(ui, state);
-        });
-    });
-
-    let weak = ui.as_weak();
-    let state_for_clear_templates = state.clone();
-    ui.on_clear_templates(move || {
-        let outcome = (|| -> Result<()> {
-            let mut state = state_for_clear_templates.borrow_mut();
-            state.db.clear_templates()?;
-            state.template_draft = TemplateDraft::default();
-            state.status_message = "Templates deleted.".into();
-            Ok(())
-        })();
-        with_partial_refresh(&weak, &state_for_clear_templates, outcome, |ui, state| {
-            refresh_home(ui, state).ok();
-            refresh_planner(ui, state);
-            refresh_status(ui, state);
-        });
-    });
-
-    let weak = ui.as_weak();
-    let state_for_clear_custom_exercises = state.clone();
-    ui.on_clear_custom_exercises(move || {
-        let outcome = (|| -> Result<()> {
-            let mut state = state_for_clear_custom_exercises.borrow_mut();
-            state.db.clear_custom_exercises()?;
-            state.status_message = "Custom exercises deleted.".into();
-            Ok(())
-        })();
-        with_partial_refresh(
-            &weak,
-            &state_for_clear_custom_exercises,
-            outcome,
-            |ui, state| {
-                refresh_exercises(ui, state);
-                refresh_status(ui, state);
-            },
-        );
     });
 
     let weak = ui.as_weak();
