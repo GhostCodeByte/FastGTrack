@@ -420,100 +420,102 @@ export component SettingsScreen inherits Rectangle {
             padding-bottom: 34px;
             spacing: 16px;
 
-            VerticalBox {
+            SettingsSectionHeading {
                 horizontal-stretch: 1;
-                spacing: 8px;
+                title: "WORKOUT DEFAULTS";
+                subtitle: "PERFORMANCE PRESETS";
+            }
 
-                SettingsSectionHeading {
-                    horizontal-stretch: 1;
-                    title: "WORKOUT DEFAULTS";
-                    subtitle: "PERFORMANCE PRESETS";
-                }
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 8px;
+                background: transparent;
+            }
 
-                SettingsCard {
-                    horizontal-stretch: 1;
-                    height: 342px;
+            SettingsCard {
+                horizontal-stretch: 1;
+                height: 342px;
 
-                    VerticalBox {
-                        x: 0;
-                        y: 0;
-                        width: parent.width;
-                        height: parent.height;
-                        padding: 12px;
-                        spacing: 10px;
+                VerticalBox {
+                    x: 0;
+                    y: 0;
+                    width: parent.width;
+                    height: parent.height;
+                    padding: 12px;
+                    spacing: 10px;
 
-                        SettingsValueField {
-                            horizontal-stretch: 1;
-                            label: "REST TIME BETWEEN SETS";
-                            hint: "Auto-start timer after a completed set.";
-                            unit: "SEC";
-                            value <=> root.default-rest;
-                            placeholder: "90";
-                        }
+                    SettingsValueField {
+                        horizontal-stretch: 1;
+                        label: "REST TIME BETWEEN SETS";
+                        hint: "Auto-start timer after a completed set.";
+                        unit: "SEC";
+                        value <=> root.default-rest;
+                        placeholder: "90";
+                    }
 
-                        SettingsValueField {
-                            horizontal-stretch: 1;
-                            label: "DEFAULT SET COUNT";
-                            hint: "Standard volume for newly created exercises.";
-                            unit: "SETS";
-                            value <=> root.set-count;
-                            placeholder: "3";
-                        }
+                    SettingsValueField {
+                        horizontal-stretch: 1;
+                        label: "DEFAULT SET COUNT";
+                        hint: "Standard volume for newly created exercises.";
+                        unit: "SETS";
+                        value <=> root.set-count;
+                        placeholder: "3";
+                    }
 
-                        SettingsValueField {
-                            horizontal-stretch: 1;
-                            label: "REP TARGET RANGE";
-                            hint: "Hypertrophy versus strength default target.";
-                            unit: "REPS";
-                            value <=> root.rep-target;
-                            placeholder: "8";
-                        }
+                    SettingsValueField {
+                        horizontal-stretch: 1;
+                        label: "REP TARGET RANGE";
+                        hint: "Hypertrophy versus strength default target.";
+                        unit: "REPS";
+                        value <=> root.rep-target;
+                        placeholder: "8";
+                    }
 
-                        SettingsValueDropdownField {
-                            horizontal-stretch: 1;
-                            label: "WEIGHT UNIT";
-                            hint: "Primary unit shown in workouts and stats.";
-                            model: ["Kg", "Lbs"];
-                            value <=> root.weight-unit;
-                        }
+                    SettingsValueDropdownField {
+                        horizontal-stretch: 1;
+                        label: "WEIGHT UNIT";
+                        hint: "Primary unit shown in workouts and stats.";
+                        model: ["Kg", "Lbs"];
+                        value <=> root.weight-unit;
                     }
                 }
             }
 
-            VerticalBox {
+            SettingsSectionHeading {
                 horizontal-stretch: 1;
-                spacing: 8px;
+                title: "APPEARANCE";
+                subtitle: "VISUAL INTERFACE";
+            }
 
-                SettingsSectionHeading {
-                    horizontal-stretch: 1;
-                    title: "APPEARANCE";
-                    subtitle: "VISUAL INTERFACE";
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 8px;
+                background: transparent;
+            }
+
+            SettingsCard {
+                horizontal-stretch: 1;
+                height: 78px;
+
+                SmallNote {
+                    x: 12px;
+                    y: 10px;
+                    width: parent.width - 24px;
+                    text: "SYSTEM THEME";
                 }
 
-                SettingsCard {
-                    horizontal-stretch: 1;
-                    height: 78px;
-
-                    SmallNote {
-                        x: 12px;
-                        y: 10px;
-                        width: parent.width - 24px;
-                        text: "SYSTEM THEME";
-                    }
-
-                    SettingsThemeButton {
-                        x: 12px;
-                        y: 30px;
-                        width: parent.width - 24px;
-                        height: 34px;
-                        label: "LIGHT MODE";
-                        icon: "☀";
-                        active: root.light-mode-active;
-                        pressed => {
-                            root.background-color = "#EFEDE8";
-                            root.text-color = "#111111";
-                            root.apply-theme-live();
-                        }
+                SettingsThemeButton {
+                    x: 12px;
+                    y: 30px;
+                    width: parent.width - 24px;
+                    height: 34px;
+                    label: "LIGHT MODE";
+                    icon: "☀";
+                    active: root.light-mode-active;
+                    pressed => {
+                        root.background-color = "#EFEDE8";
+                        root.text-color = "#111111";
+                        root.apply-theme-live();
                     }
                 }
             }
