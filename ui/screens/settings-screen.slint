@@ -417,8 +417,6 @@ export component SettingsScreen inherits Rectangle {
         VerticalBox {
             alignment: start;
             padding-top: UiVars.page-padding;
-            padding-left: 0px;
-            padding-right: 0px;
             padding-bottom: 34px;
             spacing: 16px;
 
@@ -441,10 +439,7 @@ export component SettingsScreen inherits Rectangle {
                         y: 0;
                         width: parent.width;
                         height: parent.height;
-                        padding-top: 12px;
-                        padding-bottom: 12px;
-                        padding-left: 0px;
-                        padding-right: 0px;
+                        padding: 12px;
                         spacing: 10px;
 
                         SettingsValueField {
@@ -500,16 +495,16 @@ export component SettingsScreen inherits Rectangle {
                     height: 78px;
 
                     SmallNote {
-                        x: 0px;
+                        x: 12px;
                         y: 10px;
-                        width: parent.width;
+                        width: parent.width - 24px;
                         text: "SYSTEM THEME";
                     }
 
                     SettingsThemeButton {
-                        x: 0px;
+                        x: 12px;
                         y: 30px;
-                        width: parent.width;
+                        width: parent.width - 24px;
                         height: 34px;
                         label: "LIGHT MODE";
                         icon: "☀";
@@ -528,16 +523,16 @@ export component SettingsScreen inherits Rectangle {
                 height: 92px;
 
                 SmallNote {
-                    x: 0px;
+                    x: 12px;
                     y: 10px;
-                    width: parent.width;
+                    width: parent.width - 24px;
                     text: "ACCENT COLOR";
                 }
 
                 HorizontalBox {
-                    x: 0px;
+                    x: 12px;
                     y: 34px;
-                    width: parent.width;
+                    width: parent.width - 24px;
                     height: 38px;
                     padding: 0;
                     spacing: 10px;
@@ -590,16 +585,16 @@ export component SettingsScreen inherits Rectangle {
                 height: 286px;
 
                 SmallNote {
-                    x: 0px;
+                    x: 12px;
                     y: 10px;
-                    width: parent.width;
+                    width: parent.width - 24px;
                     text: "CUSTOM PALETTE";
                 }
 
                 SettingsTextField {
-                    x: 0px;
+                    x: 12px;
                     y: 28px;
-                    width: parent.width;
+                    width: parent.width - 24px;
                     label: "ACCENT HEX";
                     value <=> root.accent-color;
                     placeholder: "#F2CF00";
@@ -607,9 +602,9 @@ export component SettingsScreen inherits Rectangle {
                 }
 
                 SettingsTextField {
-                    x: 0px;
+                    x: 12px;
                     y: 102px;
-                    width: parent.width;
+                    width: parent.width - 24px;
                     label: "BACKGROUND HEX";
                     value <=> root.background-color;
                     placeholder: "#EFEDE8";
@@ -617,9 +612,9 @@ export component SettingsScreen inherits Rectangle {
                 }
 
                 SettingsTextField {
-                    x: 0px;
+                    x: 12px;
                     y: 176px;
-                    width: parent.width;
+                    width: parent.width - 24px;
                     label: "TEXT HEX";
                     value <=> root.text-color;
                     placeholder: "#111111";
@@ -627,9 +622,9 @@ export component SettingsScreen inherits Rectangle {
                 }
 
                 ActionButton {
-                    x: 0px;
+                    x: 12px;
                     y: 244px;
-                    width: parent.width;
+                    width: parent.width - 24px;
                     height: 30px;
                     label: "RESET APPEARANCE";
                     outlined: true;
@@ -686,10 +681,7 @@ export component SettingsScreen inherits Rectangle {
                     y: 0;
                     width: parent.width;
                     height: parent.height;
-                    padding-top: 12px;
-                    padding-bottom: 12px;
-                    padding-left: 0px;
-                    padding-right: 0px;
+                    padding: 12px;
                     spacing: 10px;
 
                     SettingsInfoCard {
@@ -718,10 +710,7 @@ export component SettingsScreen inherits Rectangle {
                     y: 0;
                     width: parent.width;
                     height: parent.height;
-                    padding-top: 12px;
-                    padding-bottom: 12px;
-                    padding-left: 0px;
-                    padding-right: 0px;
+                    padding: 12px;
                     spacing: 10px;
 
                     SettingsInfoCard {
@@ -741,10 +730,7 @@ export component SettingsScreen inherits Rectangle {
                     y: 0;
                     width: parent.width;
                     height: parent.height;
-                    padding-top: 12px;
-                    padding-bottom: 12px;
-                    padding-left: 0px;
-                    padding-right: 0px;
+                    padding: 12px;
                     spacing: 8px;
 
                     SettingsInfoCard {
