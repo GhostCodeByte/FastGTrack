@@ -376,7 +376,7 @@ export component PlannerScreen inherits Rectangle {
                                         horizontal-alignment: center;
                                     }
 
-                                    Rectangle {
+                                    Panel {
                                         x: 30px;
                                         width: 60px;
                                         height: 36px;
@@ -385,9 +385,8 @@ export component PlannerScreen inherits Rectangle {
                                             && root.drag-column == "reps"
                                             && i >= root.selection-range-start
                                             && i <= root.selection-range-end;
-                                        background: self.selected ? UiVars.accent : UiVars.surface;
-                                        border-color: reps_input.has-focus || self.selected ? UiVars.accent : UiVars.border-strong;
-                                        border-width: UiVars.border-width;
+                                        fill: self.selected ? UiVars.accent : UiVars.surface;
+                                        stroke: reps_input.has-focus || self.selected ? UiVars.accent : UiVars.border-strong;
 
                                         reps_input := TextInput {
                                             width: parent.width;
@@ -482,7 +481,7 @@ export component PlannerScreen inherits Rectangle {
                                         }
                                     }
 
-                                    Rectangle {
+                                    Panel {
                                         x: 100px;
                                         width: 60px;
                                         height: 36px;
@@ -491,9 +490,8 @@ export component PlannerScreen inherits Rectangle {
                                             && root.drag-column == "weight"
                                             && i >= root.selection-range-start
                                             && i <= root.selection-range-end;
-                                        background: self.selected ? UiVars.accent : UiVars.surface;
-                                        border-color: weight_input.has-focus || self.selected ? UiVars.accent : UiVars.border-strong;
-                                        border-width: UiVars.border-width;
+                                        fill: self.selected ? UiVars.accent : UiVars.surface;
+                                        stroke: weight_input.has-focus || self.selected ? UiVars.accent : UiVars.border-strong;
 
                                         weight_input := TextInput {
                                             width: parent.width;
