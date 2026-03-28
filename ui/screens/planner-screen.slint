@@ -376,7 +376,7 @@ export component PlannerScreen inherits Rectangle {
                                         horizontal-alignment: center;
                                     }
 
-                                    Panel {
+                                    Rectangle {
                                         x: 30px;
                                         width: 60px;
                                         height: 36px;
@@ -385,8 +385,9 @@ export component PlannerScreen inherits Rectangle {
                                             && root.drag-column == "reps"
                                             && i >= root.selection-range-start
                                             && i <= root.selection-range-end;
-                                        stroke: reps_input.has-focus || self.selected ? UiVars.accent : UiVars.border-strong;
-                                        background: self.selected ? UiVars.accent : transparent;
+                                        background: self.selected ? UiVars.accent : UiVars.surface;
+                                        border-color: reps_input.has-focus || self.selected ? UiVars.accent : UiVars.border-strong;
+                                        border-width: UiVars.border-width;
 
                                         reps_input := TextInput {
                                             width: parent.width;
@@ -481,7 +482,7 @@ export component PlannerScreen inherits Rectangle {
                                         }
                                     }
 
-                                    Panel {
+                                    Rectangle {
                                         x: 100px;
                                         width: 60px;
                                         height: 36px;
@@ -490,8 +491,9 @@ export component PlannerScreen inherits Rectangle {
                                             && root.drag-column == "weight"
                                             && i >= root.selection-range-start
                                             && i <= root.selection-range-end;
-                                        stroke: weight_input.has-focus || self.selected ? UiVars.accent : UiVars.border-strong;
-                                        background: self.selected ? UiVars.accent : transparent;
+                                        background: self.selected ? UiVars.accent : UiVars.surface;
+                                        border-color: weight_input.has-focus || self.selected ? UiVars.accent : UiVars.border-strong;
+                                        border-width: UiVars.border-width;
 
                                         weight_input := TextInput {
                                             width: parent.width;
@@ -644,6 +646,7 @@ export component PlannerScreen inherits Rectangle {
 
                                     Text {
                                         text: "+ ADD SET";
+                                        color: UiVars.ink;
                                         font-weight: 800;
                                         font-size: 13px;
                                         letter-spacing: 1px;
